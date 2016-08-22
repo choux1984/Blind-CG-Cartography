@@ -48,40 +48,7 @@ function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,mu_w,Nc)
     title(sprintf('Reconstructed w with K-std=%g, mu_w=%g, Nc = %g', K_std, mu_w,Nc))
     file_name=sprintf('est_w_K_std_%g_mu_w_%g_Nc_%g.fig',K_std, mu_w,Nc);
     saveas(h,file_name)
-% 
-%     % 2-D plot while fixing phi_1
-%     figure
-%     num_plot = 4;
-%     itv_plot = floor(len_phi1/num_plot); %interval of phi_1 for the subplots
-%     for n = 1 : num_plot
-%         subplot(2,2,n);
-%         vec_inds = (n-1)*itv_plot + 1:n*itv_plot + 1;
-%         plot(rng_phi2',w_o(vec_inds,:)')
-%         for k = 1:length(vec_inds)
-%             leg{k} = sprintf('\\phi_1 = %g', rng_phi1(vec_inds(k)));
-%         end
-%         legend(leg,'Location','southwest');
-% 
-%         hold on
-%         plot(rng_phi2',hat_w(vec_inds,:)','--')
-%         hold off
-%         xlabel('\phi_2')
-%         ylabel('w')      
-%     end
-% 
-    % 3D plot of Original and Estimated functions
-%     figure
-%     surf(rng_phi2,rng_phi1,w_o)
-%     title('Ground truth w')
-%     ylabel('\phi_1')
-%     xlabel('\phi_2')  
-%     figure
-%     
-%     surf(rng_phi2,rng_phi1,idx_sign .* hat_w)
-%     title('Estimated w')
-%     ylabel('\phi_1')
-%     xlabel('\phi_2')    
-    
+
 
 end
 
