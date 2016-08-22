@@ -1,5 +1,5 @@
 % INPUT
-%  resolution         integer to decide the resol. of the discretized SLF
+%  resolution         integer to decide the resol. of the discretized SLF!!
 resolution= 2;
 
 % Load files
