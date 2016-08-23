@@ -1,4 +1,4 @@
-function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,lambda,Nc,idx_sign)
+function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,mu_w,Nc,idx_sign,rho)
 %   Display the original and estimated weighted functions
 % 
 % INPUT:
@@ -17,11 +17,11 @@ function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,lambda,Nc,idx_sign)
 %     rng_phi1 = min_phi1:0.5:max_phi1;
 %     rng_phi2 = min_phi1:0.1:max_phi2;  
     
-%     rng_phi1 = 15:0.5:25;
-%     rng_phi2 = 15:0.05:30;  
+    rng_phi1 = 16:0.15:18;
+    rng_phi2 = 16:0.01:18;  
     
-    rng_phi1 = 5:0.5:8;
-    rng_phi2 = 5:0.05:12;  
+%     rng_phi1 = 10:0.3:15;
+%     rng_phi2 = 12:0.01:16;  
 %     
     len_phi1 = size(rng_phi1,2);
     len_phi2 = size(rng_phi2,2);
@@ -47,8 +47,8 @@ function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,lambda,Nc,idx_sign)
     plot(rng_phi2(1:1:end)',w_o(:,1:1:end)');
     hold on
     plot(rng_phi2(1:1:end)',idx_sign .* hat_w(:,1:1:end)','--');
-    title(sprintf('Reconstructed w with K-std=%g, lambda=%g, Nc = %g', K_std, lambda,Nc))
-    file_name=sprintf('est_w_K_std_%g_lam_%g_Nc_%g.fig',K_std, lambda,Nc);
+    title(sprintf('Reconstructed w with K-std=%g, mu_w=%g, rho=%g, Nc = %g', K_std, mu_w,rho,Nc))
+    file_name=sprintf('est_w_K_std_%g_mu_w_%g_rho_%g_Nc_%g.fig',K_std, mu_w,rho,Nc);
     saveas(h,file_name)
 % 
 %     % 2-D plot while fixing phi_1
@@ -72,17 +72,17 @@ function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,lambda,Nc,idx_sign)
 %     end
 % 
     % 3D plot of Original and Estimated functions
-    figure
-    surf(rng_phi2,rng_phi1,w_o)
-    title('Ground truth w')
-    ylabel('\phi_1')
-    xlabel('\phi_2')  
-    figure
-    
-    surf(rng_phi2,rng_phi1,idx_sign .* hat_w)
-    title('Estimated w')
-    ylabel('\phi_1')
-    xlabel('\phi_2')    
+%     figure
+%     surf(rng_phi2,rng_phi1,w_o)
+%     title('Ground truth w')
+%     ylabel('\phi_1')
+%     xlabel('\phi_2')  
+%     figure
+%     
+%     surf(rng_phi2,rng_phi1,idx_sign .* hat_w)
+%     title('Estimated w')
+%     ylabel('\phi_1')
+%     xlabel('\phi_2')    
     
 
 end

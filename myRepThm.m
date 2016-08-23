@@ -28,7 +28,12 @@ Nc = size(evl_pnt,2);
 % end
 % out_Rep = vec_K * alpha;
 
-vec_K = myKfunc(input*ones(1,Nc),evl_pnt(:,:));
+% vec_K = myKfunc(input*ones(1,Nc),evl_pnt(:,:));
+
+for i = 1 : Nc
+    vec_K(1,i) = myKfunc(input,evl_pnt(:,i));
+end
+
 out_Rep = vec_K * alpha;
 
 end

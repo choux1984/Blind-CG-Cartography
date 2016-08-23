@@ -1,4 +1,4 @@
-function [est_f,A_K] = est_field(K,idx_phi,alpha,s_check,Ng,R,mu,RK)
+function [est_f,A_K] = est_field(K,idx_phi,alpha,s_check,Ng,R,mu_f,RK)
     % Estimator for SLF
     
     % INPUT:
@@ -18,5 +18,5 @@ function [est_f,A_K] = est_field(K,idx_phi,alpha,s_check,Ng,R,mu,RK)
 %     RK = compute_RK(K,idx_phi);
     temp_Ka = RK * alpha;
     A_K = reshape(temp_Ka,Ng,t)';
-    est_f = (A_K' * A_K + t * mu * R)\ (A_K' * s_check);
+    est_f = (A_K' * A_K + t * mu_f * R)\ (A_K' * s_check);
 end

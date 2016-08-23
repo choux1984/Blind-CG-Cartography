@@ -34,8 +34,7 @@ function est_f = est_field_ADMM(Ng,alpha,mu_f,rho,num_itr,s_check,RK,D,P,f)
     gamma_y = zeros(N_Dx,1);
     d_x = zeros(N_Dx,1);
     d_y = zeros(N_Dx,1);
-      
-
+    
     for k = 1 : num_itr
 %         k
         % [S1] Dual ascent for aux variables

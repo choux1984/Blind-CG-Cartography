@@ -50,9 +50,15 @@ function [evl_pnts,idx_phi,phi_col] = generate_feature_vecs(N_x,N_y,Tx_pos,Rx_po
                 rand_centroids = uni_phi_col(:,idx_centroids);                
                              
                 % assign each col of phi_col to a centroid --> idx_phi
-                matD = pdist2(phi_col',rand_centroids');% matD := distance matrix between coordinates and centroids
-                [~,idx_phi] = min(matD');
-                idx_phi = idx_phi';
+%                 matD = pdist2(phi_col',rand_centroids');% matD := distance matrix between coordinates and centroids
+%                 [~,idx_phi] = min(matD');
+                
+                for i = 1: size(phi_col,2)
+                    matD = pdist2(phi_col(:,i)',rand_centroids');
+                    [~,idx_phi(i,1)] = min(matD');
+                end
+                
+%                 idx_phi = idx_phi';
                 
                 evl_pnts = rand_centroids;
         end
