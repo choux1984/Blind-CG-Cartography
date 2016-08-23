@@ -2,8 +2,8 @@ function [s_check,omg_str1,Dist_str_dB] = myShadowGen(Pos_Tx,Pos_Rx,Pos_Tx_free,
 % function to give an estimate of shadowing measurement from RSS
 
 % Calculate the distances btw Rx's and Tx's
-Dist_free = sqrt((Pos_Tx_free(:,1) - Pos_Rx_free(:,1)).^2 +(Pos_Tx_free(:,2) - Pos_Rx_free(:,2)).^2) * 0.3048;
-Dist_str = sqrt((Pos_Tx(:,1) - Pos_Rx(:,1)).^2 +(Pos_Tx(:,2) - Pos_Rx(:,2)).^2) * 0.3048;
+Dist_free = sqrt((Pos_Tx_free(:,1) - Pos_Rx_free(:,1)).^2 +(Pos_Tx_free(:,2) - Pos_Rx_free(:,2)).^2) ;
+Dist_str = sqrt((Pos_Tx(:,1) - Pos_Rx(:,1)).^2 +(Pos_Tx(:,2) - Pos_Rx(:,2)).^2);
 alpha = 2; % Compensation of pathloss : alpha = 2
 Dist_free_dB = 10  * log(Dist_free)./log(10); % PL_free:=Pathloss of free space
 Dist_str_dB = 10  * log(Dist_str)./log(10); % PL_str:=Pathloss of structure

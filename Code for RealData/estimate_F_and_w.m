@@ -31,7 +31,7 @@ function [est_F,w,phi_col,evl_pnt] = estimate_F_and_w( s_check, Tx_pos , Rx_pos,
 % constants
 % num_CR_set = 1; % Number of secondary users in the CR network
 eps_error = 1e-10;
-max_itr = 200;
+max_itr = 1;
 
 % dependent variables
 [N_x, N_y] = size(ini_F);

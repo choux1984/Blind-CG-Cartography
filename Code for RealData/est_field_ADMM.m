@@ -29,7 +29,6 @@ function est_f = est_field_ADMM(Ng,alpha,mu_f,rho,num_itr,s_check,RK,D,P,f)
     til_s = (2/T) * A' * s_check;
     
     % Initialize
-%     f = randn(N_g,1);
     gamma_x = zeros(N_Dx,1);
     gamma_y = zeros(N_Dx,1);
     d_x = zeros(N_Dx,1);
@@ -37,7 +36,6 @@ function est_f = est_field_ADMM(Ng,alpha,mu_f,rho,num_itr,s_check,RK,D,P,f)
       
 
     for k = 1 : num_itr
-%         k
         % [S1] Dual ascent for aux variables
         gamma_x = gamma_x + rho * (D*f - d_x);
         gamma_y = gamma_y + rho * (DP*f - d_y);  
@@ -48,11 +46,8 @@ function est_f = est_field_ADMM(Ng,alpha,mu_f,rho,num_itr,s_check,RK,D,P,f)
         
         % [S3] Updates of SLF        
         f = ( til_H ) \(D' *(rho * d_x - gamma_x) + DP' *(rho * d_y -gamma_y) + til_s);
-%         k
-%         cost(k) = (1/T) * norm(A*f - s_check,2)^2 + mu_f *(sum(abs(D*f)) + sum(abs(DP*f)));
     end
     est_f = f;
-%     figure
-%     plot(cost);
+
     
 end

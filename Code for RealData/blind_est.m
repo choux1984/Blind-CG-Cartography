@@ -25,9 +25,10 @@ function [hat_alpha,hat_f] = blind_est(K,idx_phi,s_check,mu_w,ini_f,eps_error,ma
     Ng = length(ini_f);
     N_x = sqrt(Ng);
     N_y = N_x;
-        
+    
+    % TR = Tikhonov matrix 
     TR = myiCovMat(20,20,resolution);
-%     TR = eye(Ng); % Tikhonov reg.
+%     TR = eye(Ng); 
     RK = compute_RK(K,idx_phi);
       
     % ADMM parameters

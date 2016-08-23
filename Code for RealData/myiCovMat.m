@@ -16,7 +16,7 @@ N_y = size(grid_Y,2);
 u = 1;
 for i = 1: N_x * N_y
     for j = 1 : N_x * N_y
-        vec_R(u,1) = sqrt((grid_x_vec(j,1) - grid_x_vec(i,1))^2 + (grid_y_vec(j,1) - grid_y_vec(i,1))^2)* 0.3048;
+        vec_R(u,1) = sqrt((grid_x_vec(j,1) - grid_x_vec(i,1))^2 + (grid_y_vec(j,1) - grid_y_vec(i,1))^2);
         u = u + 1;
     end
 end

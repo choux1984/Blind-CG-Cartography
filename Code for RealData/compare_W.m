@@ -1,4 +1,4 @@
-function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,mu_w,Nc)
+function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,mu_w,Nc,idx_sign)
 %   Display the original and estimated weighted functions
 % 
 % INPUT:
@@ -44,12 +44,12 @@ function compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,mu_w,Nc)
     h = figure
     plot(rng_phi2(1:1:end)',w_o(:,1:1:end)');
     hold all
-    plot(rng_phi2(1:1:end)', hat_w(:,1:1:end)','--');
+    plot(rng_phi2(1:1:end)',idx_sign .* hat_w(:,1:1:end)','--');
     title(sprintf('Reconstructed w with K-std=%g, mu_w=%g, Nc = %g', K_std, mu_w,Nc))
     file_name=sprintf('est_w_K_std_%g_mu_w_%g_Nc_%g.fig',K_std, mu_w,Nc);
     saveas(h,file_name)
-
-
+ 
+    
 end
 
 function w = myinvElip(w_fun,rng_phi1,rng_phi2,lambda_W,eps_W)

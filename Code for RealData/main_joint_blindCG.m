@@ -1,6 +1,6 @@
 % INPUT
-%  resolution         integer to decide the resol. of the discretized SLF!!
-resolution= 2;
+%  resolution         integer to decide the resol. of the discretized SLF
+resolution= 0.5; 
 
 % Load files
 filename1 = 'Tx_position.csv'; % v2 for non-missing case (step6)
@@ -28,16 +28,16 @@ N_x = 20 * resolution + 1; % Size of the discretized SLF (N_x-by-N_y)
 N_y = 20 * resolution + 1;
 mu_f = 1e-2; % 1e-1
 mu_w = 2 * 1e-3; % 2 * 1e-3
-Nc = 3000;
+Nc = 10;
 K_std = 0.2;
 % myKfunc = @(input1,input2) exp(-norm(input1-input2).^2./(2 * K_std^2)); %myKfunc := kernel function
 myKfunc = @(input1,input2) exp(-norm(input1-input2)./(2 * K_std^2)); %myKfunc := kernel function
 
 clustering_type = 'random';
 blind_ind = 1;
-ini_F = 2 * rand(N_x,N_y) - 1; 
+ini_F = rand(N_x,N_y); 
 % ini_F = csvread(filename9);
-lambda_W = 0.1224; % parameter to determine the threshold for nonzero weights
+lambda_W = 0.39; % parameter to determine the threshold for nonzero weights
 w_fun = @(d,d_mu)  ( ((d./2).^2 + (d_mu).^2).^(-.5) )./ (pi.*d_mu);
 eps_W = 1e-3;    
 
