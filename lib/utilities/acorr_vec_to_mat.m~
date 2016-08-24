@@ -1,0 +1,22 @@
+
+function C = acorr_vec_to_mat( r , dim )
+% dim is optional. it is the dimension of C. used to truncate.
+
+assert(mod(length(r),2)==1);
+center = (length(r)-1)/2 + 1;
+
+if nargin < 2
+	dim = (lenght(r)-1)/2;
+end
+
+C = toeplitz( r(center:center+dim-1),fliplr( r(center-dim+1:center) ) );
+end
+
+
+
+% 
+% function C = acorr_vec_to_mat( r )
+% assert(mod(length(r),2)==1);
+% center = (length(r)-1)/2 + 1;
+% C = toeplitz( r(center:end),fliplr( r(1:center) ) );
+% end

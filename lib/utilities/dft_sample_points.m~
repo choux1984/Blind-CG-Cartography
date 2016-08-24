@@ -1,0 +1,29 @@
+function X_dft = dft_sample_points( x , Npoints )
+
+%
+%  X_dft is a Npoints vector with uniformly-spaced samples of the DFT of x,
+%  understood as a signal x[0],x[1],...,x[length(x)-1].
+%
+%  X_dft[k] = X( exp( j* 2*pi*k / Npoints )), with k=0,...,Npoints-1
+%
+
+x_col = be_column(x);
+
+
+
+X_dft = dft_sample( x_col , omega );
+
+
+if is_col_vec(x)
+	X_dft = be_column(X_dft);
+else
+	X_dft = be_column(X_dft).';
+end
+
+
+
+
+
+
+
+end

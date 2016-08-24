@@ -1,0 +1,17 @@
+function y=fir_filter(Hd,x)
+%
+% filters a signal with a FIR filter skipping the transient
+%   Hd is a filter object (dfilt), like the output of DESIGN, or LP_FILT or
+%   a vector with coefficients. 
+%
+
+if (isa(Hd,'dfilt.dffir'))
+	N=length(Hd.Numerator);
+	y=filter(Hd,x)
+
+	
+else
+	
+end
+
+return
