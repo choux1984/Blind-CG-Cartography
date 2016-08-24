@@ -18,7 +18,7 @@ assert(nargin>=1,'Not enough arguments');
 global plot_f_settings
 plot_f_settings.docked_on=0; 
 plot_f_settings.title_to_caption=1;
-plot_f_settings.saveplots=1;  % write figures to files
+plot_f_settings.saveplots=0;  % write figures to files
 plot_f_settings.pdf_flag=1;   % write figures to pdf
 plot_f_settings.bw_maxpoints=20; 
 plot_f_settings.figbasename='';  % if ~='' then figures are stored in the specified location,

@@ -84,7 +84,7 @@ classdef F_figure
 			'-.','-.','-.','-.','-.','-.','-.',...
 			':',':',':',':',':',':',':'};
 		plot_type_2D = 'plot'; % other possibilities: 'stem' and 'bar'
-		plot_type_3D = 'imagesc'; % other possibilities: 'plot3','surf' (make selection imagesc/surf automatic)
+		plot_type_3D = 'imagesc'; % other possibilities: 'plot3','surf' (make selection imagesc/surf automatic), 'pcolor'
 		
 		
 		gstyle = '--';           % style for the grid. Other values are '' and ':'
@@ -343,6 +343,9 @@ classdef F_figure
 				% the same happens if we export through matlab standard commands.
 				% A solution is to export to eps.
 				case 'imagesc'
+					imagesc(F.Z);
+					colormap('gray');
+				case 'pcolor'
 					pcolor(F.X,F.Y,F.Z);
 					colormap(gcf,jet(100));
 				case 'surf'
