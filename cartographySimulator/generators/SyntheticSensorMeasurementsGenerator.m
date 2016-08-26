@@ -41,8 +41,8 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 			switch(obj.ch_sensorLocationMode)
 				case 'uniform'
 					[N_x,N_y] = size(obj.m_F);
-					m_txPos = diag([N_x-1,N_y-1])*rand(2,obj.s_measurementNum)+1;
-					m_rxPos = diag([N_x-1,N_y-1])*rand(2,obj.s_measurementNum)+1;
+					m_txPos = diag([N_x,N_y])*rand(2,obj.s_measurementNum);
+					m_rxPos = diag([N_x,N_y])*rand(2,obj.s_measurementNum);
 					
 				case 'boundary'
 				    % to be coded			
@@ -75,20 +75,23 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 			
 			% 1. compute m_W matrix
 			[sizeX,sizeY] = size(m_F);
-			rows = repmat((1:sizeX)', 1, sizeY);  % first coordinate of grid point
-			cols = repmat(1:sizeY, sizeX, 1);     % second coordinate of grid point
-			
+            x_axis = repmat((1:sizeY), sizeX, 1);    % x_axis of a grid
+			y_axis = repmat((sizeX:-1:1)', 1, sizeY); % y_axis of a grid
+            
+            
 			phi1 = norm(v_txPos-v_rxPos);
-			phi2 = sqrt( (rows-v_txPos(1)).^2 + (cols-v_txPos(2)).^2 ) + sqrt( (rows-v_rxPos(1)).^2 + (cols-v_rxPos(2)).^2 );
+			phi2 = sqrt( (x_axis-v_txPos(1)).^2 + (y_axis-v_txPos(2)).^2 ) + sqrt( (x_axis-v_rxPos(1)).^2 + (y_axis-v_rxPos(2)).^2 );
 			
-			% (non-efficient way; please optimize if needed)
-			m_W = zeros(sizeX,sizeY);
-			for c1 = 1:sizeX
-				for c2 = 1:sizeY
-					m_W(c1,c2) = h_w( phi1 , phi2(c1,c2) );
-				end
-			end
+%			% (non-efficient way; please optimize if needed)
+% 			m_W = zeros(sizeX,sizeY);
+% 			for c1 = 1:sizeX
+% 				for c2 = 1:sizeY
+% 					m_W(c1,c2) = h_w( phi1 , phi2(c1,c2) );
+% 				end
+%             end
 			
+            % Efficient way to calculate m_W
+            m_W = h_w( phi1 , phi2);
 						
 			% 2. multiply m_F and m_W
 			s = sum(sum(m_W.*m_F)); % signal w/o noise

@@ -62,23 +62,25 @@ classdef CGCartographySimulations < simFunctionSet
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		
-		% This is a toy simulation
+		% This is a toy simulation for a non-blind shadow loss field
+		% estimation
 		function F = compute_fig_2001(obj,niter)
 			
 			
 			% Create data genator
 			m_F = csvread('Map_15_15.csv');
 			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
-			h_w = @(phi1,phi2) (1/sqrt(phi1))*(phi2<phi2+lambda_W/2); % normalized ellipse model
-			s_measurementNum = 10;   
+			h_w = @(phi1,phi2) (1/sqrt(phi1))*(phi2<phi1+lambda_W/2); % normalized ellipse model
+			s_measurementNum = 200;   
 			s_noiseVar = 0.1;% noise variance
 			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar);
 			
 			% Create estimator
-			ch_reg_f_type = 'tikhonov';
+			ch_reg_f_type = 'totalvariation';
 			mu_f = 1e-4;
 			ini_F = randn(size(m_F));
-			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind');
+            rho =  1e-2;
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho);
 			
 			
 			% SIMULATION
@@ -86,8 +88,10 @@ classdef CGCartographySimulations < simFunctionSet
 			[s_check,m_txPos,m_rxPos] = dataGenerator.realization();
 			
 			% B) estimation
-			[m_F_est] = est.estimate(s_check,m_txPos,m_rxPos)
-			
+			[m_F_est] = est.estimate(s_check,m_txPos,m_rxPos);
+            figure
+			imagesc([m_F_est])
+			colormap('gray');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%			
 			
 			% estimation parameters			

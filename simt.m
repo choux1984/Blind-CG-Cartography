@@ -23,7 +23,7 @@ plot_f_settings.pdf_flag=1;   % write figures to pdf
 plot_f_settings.bw_maxpoints=20; 
 plot_f_settings.figbasename='';  % if ~='' then figures are stored in the specified location,
                                  % else, the default folder is used. It must end with '/'.
-plot_f_settings.pos=[200.0000  102.0000 .85*[592.3077  363.4615]]; % good for papers
+plot_f_settings.pos=[200.0000  202.0000 .85*[592.3077  363.4615]]; % good for papers
 %plot_f_settings.pos=[];
 global chars_per_line
 chars_per_line = 40;
