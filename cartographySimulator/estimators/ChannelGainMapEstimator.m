@@ -26,6 +26,17 @@ classdef ChannelGainMapEstimator < Parameter
 					 % 'blind'
 					 %
 		
+        % calibration
+		ch_calibrationType = 'none'; 
+		             %  'none'  : values of pathloss and gains taken from
+		             %            the properties below
+					 %  'previous' : first calibration and then estimation
+					 %            of the SLF
+					 %  'simultaneous' 
+		s_pathLossExponent; 
+		v_gains;
+					 
+		
 		% non-blind estimation
 		h_w = [];    %  
 		
@@ -42,11 +53,6 @@ classdef ChannelGainMapEstimator < Parameter
 		function obj = ChannelGainMapEstimator(varargin)
 			obj@Parameter(varargin{:});
 		end
-		
-	
-	end
-	
-	methods
 				
 		function [m_F_est,h_w_est,m_centroids] = estimate(obj,s_check,m_txPos,m_rxPos)	
 			%
@@ -138,7 +144,7 @@ classdef ChannelGainMapEstimator < Parameter
 		
     end
 	
-    methods(Static)
+    methods(Static) % solvers
         % COMMON INPUT:
         %      m_A         (N_g-by-s_measurementNum) parameter matrix 
         %      v_s         s_measurementNum-by-1 vector with (noisy/noiseless) measurements 
@@ -287,7 +293,7 @@ classdef ChannelGainMapEstimator < Parameter
         
     end
     
-    methods(Static)
+    methods(Static) % Utilities
         function m_P = permOpColMaj2RowMaj(N_x,N_y)
         % Generate a permuation operator to change a column-major form vectorization of a matrix to
         % row-major form, i.e., m_P * m_x = m_X'(:) where m_x = m_X(:)
@@ -335,6 +341,19 @@ classdef ChannelGainMapEstimator < Parameter
             m_D = [m_D1;m_D2];
         end
         
-    end
+	end
+	
+	methods(Static) 
+	
+		function m_imageOut = postprocess(m_imageIn)
+			
+			m_imageOut = m_imageIn;
+			m_imageOut( m_imageOut < 0 ) = 0;
+			m_imageOut( m_imageOut > 1 ) = 1;
+			
+		end
+		
+	end
+	
 end
 

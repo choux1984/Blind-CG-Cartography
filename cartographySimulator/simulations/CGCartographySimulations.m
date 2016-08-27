@@ -58,25 +58,27 @@ classdef CGCartographySimulations < simFunctionSet
 		
 		
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		% %%  2. Simple non-blind simulations
+		% %%  2. Simple non-blind simulations with synthetic data
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		
 		% This is a toy simulation for a non-blind shadow loss field
-		% estimation
+		% estimation. No simultaneous calibration (estimator knows path
+		% loss exponent and sensor gains)
 		function F = compute_fig_2001(obj,niter)
 			
 			
 			% Create data genator
 			m_F = csvread('Map_15_15.csv');
+			m_F = m_F/max(max(m_F));
 			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
 			h_w = @(phi1,phi2) (1/sqrt(phi1))*(phi2<phi1+lambda_W/2); % normalized ellipse model
 			s_measurementNum = 200;   
-			s_noiseVar = 0.1;% noise variance
+			s_noiseVar = 0.001;% noise variance
 			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar);
 			
 			% Create estimator
-			ch_reg_f_type = 'totalvariation';
+			ch_reg_f_type = 'tikhonov'; %'l1_PCO'; %'totalvariation';
 			mu_f = 1e-4;
 			ini_F = randn(size(m_F));
             rho =  1e-2;
@@ -89,52 +91,56 @@ classdef CGCartographySimulations < simFunctionSet
 			
 			% B) estimation
 			[m_F_est] = est.estimate(s_check,m_txPos,m_rxPos);
-            figure
-			imagesc([m_F_est])
-			colormap('gray');
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%			
 			
-			% estimation parameters			
-% 			mu_w = 0.26;
-% 			
-% 			K_std = 0.15; %0.19
-% 			Nc = 10;
-% 			rho = 1e-3;
-% 			
-% 			; % choose regularizer type for the SLF: 'T' = Tikhonov; 'S' = l_1; 'TV' = total variation						
-% 			% myKfunc = @(input1,input2) exp(-norm(input1-input2).^2./(2 * K_std^2)); %myKfunc := kernel function
-% 			% myKfunc = @(input1,input2) exp(-norm(input1-input2)./(2 * K_std^2)); %myKfunc := kernel function -> Expo. kernel			
-% 			clustering_type = 'random';
-			% initialization
+			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
+			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');			
+			F = F_figure('multiplot_array',[F1 F2]);
 			
-			% data generation
-			%[s_check,Tx_pos,Rx_pos] = myRxSig(t_slots,F,sigma_2,w_fun,lambda_W,eps_W); %s_check := noisy received signal
 			
-% 			% Estimation
- 			%[est_F,w_est,phi_col,evl_pnt] = estimate_F_and_w( s_check, Tx_pos , Rx_pos,  ini_F , myKfunc  , mu_w , mu_f,  Nc , clustering_type, reg_f_type, blind_ind,lambda_W,rho);
-% 			
-% 			% representation
-% 			
-% 			
-% 			h=figure
-% 			imagesc([est_F])
-% 			colormap('gray');
-% 			
-% 			save('est_F.mat','est_F')
-% 			
-% 			title(sprintf('Reconstructed field with K-std=%g, mu_f=%g, mu_w=%g, rho=%g, Nc=%g,t_slots=%g', K_std, mu_f, mu_w, rho, Nc,t_slots))
-% 			file_name=sprintf('est_f_K_std_%g_mu_f_%g_mu_w_%g_rho_%g_Nc_%g.fig',K_std, mu_f, mu_w, rho, Nc);
-% 			saveas(h,file_name)
-% 			
-% 			compare_W(w_fun,w_est,N_x,N_y,lambda_W,eps_W,K_std,mu_w,Nc,1,rho);
-% 		
+		
+			
+		end% This is a toy simulation for a non-blind shadow loss field
+		
+		
+		% comparison of different regularizers (to be coded)
+		
+		
+		
+		% non-blind with simultaneous calibration
+		
+		
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% %%  3. Simple blind simulations with synthetic data
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		
+		% Simulation with blind estimation
+		function F = compute_fig_3001(obj,niter)
 			
 			F = [];
-			
 		end
 		
 		
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% %%  4. Simple non-blind simulations with REAL data
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		% without simultaneous calibration
+		
+		
+		
+		
+		% with simultaneous calibration
+		
+				
         
+		
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		% %%  5. Simple blind simulations with REAL data
+		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		
+		
 	end
 	
 	

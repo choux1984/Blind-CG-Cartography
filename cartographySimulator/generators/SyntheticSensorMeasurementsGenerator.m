@@ -15,11 +15,18 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 	properties
 		m_F            % spatial loss field matrix
 		h_w            % weight function handle; it is a function of two 
-		               % parameters phi_1 and phi_2 (see writeup)
-		s_measurementNum      
+		               % parameters phi_1 and phi_2 (see writeup)		
+		s_measurementNum   % number of measurements. Each measurement corresponds
+		               % to two sensors selected among the length(v_gains)
+		               % sensors
+		v_gains = [];  % vector with the gains of the sensors. If empty, then 
+		               % a pair of sensor locations is generated per
+		               % measurement and all have gain 0dB. 
+        s_pathLossExponent = 2;
+		
 		s_noiseVar
 		
-		ch_sensorLocationMode = 'uniform'; % other options are 'boudary'
+		ch_sensorLocationMode = 'uniform'; % other options are 'boundary'
 			
 	end
 	
@@ -33,29 +40,44 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 	
 	methods
 				
-		function [v_shadowingMeasuremens,m_txPos,m_rxPos] = realization(obj)
+		function [m_sensorPos,m_sensorInd,v_measurements] = realization(obj)
 			% OUTPUT: see parent class
 			
-			
 			% 1. Generate sensor locations
-			switch(obj.ch_sensorLocationMode)
-				case 'uniform'
-					[N_x,N_y] = size(obj.m_F);
-					m_txPos = diag([N_x,N_y])*rand(2,obj.s_measurementNum);
-					m_rxPos = diag([N_x,N_y])*rand(2,obj.s_measurementNum);
-					
-				case 'boundary'
-				    % to be coded			
-			end
+			if isempty(obj.v_gains)  % one pair of sensors generated per measurement
+				
+				switch(obj.ch_sensorLocationMode)
+					case 'uniform'
+						[N_x,N_y] = size(obj.m_F);
+						m_txPos = diag([N_x,N_y])*rand(2,obj.s_measurementNum);
+						m_rxPos = diag([N_x,N_y])*rand(2,obj.s_measurementNum);
+						
+					case 'boundary'
+						% to be coded
+				end
+				
+				% v_sumOfGains = zeros ...
 			
+			else  % the locations of length(obj.v_gains) sensors are generated and 
+				  % obj.s_measurementNum different pairs of sensors are
+				  % selected and a measurement is generated per pair. 
+				
+				
+				 % v_sumOfGains = ...
+			end
 			
 			% 2. Obtain measurements from obj.m_F, obj.h_w, and sensor
 			% locations
-			v_shadowingMeasuremens = zeros(size(m_txPos,2),1);
+			v_shadowing = zeros(size(m_txPos,2),1);
 			for s_measurementInd = 1:size(m_txPos,2)
-				v_shadowingMeasuremens(s_measurementInd) = SyntheticSensorMeasurementsGenerator.getNoiselessMeasurements(obj.m_F,obj.h_w,m_txPos(:,s_measurementInd),m_rxPos(:,s_measurementInd)) + sqrt(obj.s_noiseVar)*randn;
+				v_shadowing(s_measurementInd) = SyntheticSensorMeasurementsGenerator.getNoiselessMeasurements(obj.m_F,obj.h_w,m_txPos(:,s_measurementInd),m_rxPos(:,s_measurementInd)) + sqrt(obj.s_noiseVar)*randn;
+				%v_pathloss =  some function of m_txPos(:,s_measurementInd) and m_rxPos(:,s_measurementInd)
 			end
 			
+			
+			% code this
+			% add path loss and gains
+			v_measurements = v_pathLoss + v_sumOfGains + v_shadowing;
 			
 		end
 		
