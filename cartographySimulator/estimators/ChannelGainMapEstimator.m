@@ -148,10 +148,15 @@ classdef ChannelGainMapEstimator < Parameter
 						v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
 						v_sensorDistancesdB(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
 					end
-					m_regMat = [m_Omega,-1 * v_sensorDistancesdB,-1 * m_vecWCollection'];
-					v_parameters_est = obj.chooseSolver(v_measurements,m_regMat');
-					v_f_est = v_parameters_est(s_sensorNum+2:end,1);
-
+					
+					m_barI = eye(s_measurementNum) - (1/(norm(v_sensorDistancesdB,2)^2))*(v_sensorDistancesdB)*(v_sensorDistancesdB');
+					m_tempOmega = m_barI * m_Omega;
+					% add "1e-4 * eye(s_sensorNum)" to "m_tempOmega' * m_tempOmega" for matrix inversion
+					m_barOmega = m_Omega * ((m_tempOmega' * m_tempOmega + 1e-4 * eye(s_sensorNum)) \ (m_tempOmega' * m_barI));
+					m_tildeI = m_barI * (eye(s_measurementNum) - m_barOmega);
+					v_barmeasurements = m_tildeI * v_measurements;
+					m_barvecWCollection = -1 * m_vecWCollection * m_tildeI';
+					v_f_est = obj.chooseSolver(v_barmeasurements,m_barvecWCollection);
 			end
           
 			m_F_est = reshape(v_f_est,N_x,N_y);			

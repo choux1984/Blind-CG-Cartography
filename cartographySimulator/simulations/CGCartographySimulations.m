@@ -102,7 +102,47 @@ classdef CGCartographySimulations < simFunctionSet
         end
 		
 		
-		% comparison of different regularizers (to be coded)
+		% Comparison of different regularizers. WLOG, assume that an estimator knows path
+		% loss exponent and sensor gains.  
+		function F = compute_fig_2002(obj,niter)
+						
+			% Create data genator
+			m_F = csvread('Map_15_15.csv');
+			m_F = m_F/max(max(m_F));
+			s_numGrid = size(m_F,1) * size(m_F,2);
+			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
+			h_w = @(phi1,phi2) (1/sqrt(phi1))*(phi2<phi1+lambda_W/2); % normalized ellipse model
+			s_measurementNum = 200;
+            s_pathLossExponent = 2;
+            v_gains = [];
+			s_noiseVar = 0.001;% noise variance
+			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
+			
+			% Create estimator
+			m_tikhonov = eye(s_numGrid);
+			ch_calibrationType = 'none'; % 'none','previous','simultaneous'
+			ini_F = randn(size(m_F));
+			estTikhonov = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','tikhonov','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov);
+			estL1PCO = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','l1_PCO','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType);
+			estTotalvariation = ChannelGainMapEstimator('mu_f',1e-5,'ch_reg_f_type','totalvariation','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',1e-4,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType);
+					
+			% SIMULATION
+			% A) data generation
+			[m_sensorPos,m_sensorInd,v_measurements] = dataGenerator.realization();
+			
+			% B) estimation
+			[m_F_estTikhonov] = estTikhonov.estimate(m_sensorPos,m_sensorInd,v_measurements,[]);
+			[m_F_estL1PCO] = estL1PCO.estimate(m_sensorPos,m_sensorInd,v_measurements,[]);
+			[m_F_estTotalvariation] = estTotalvariation.estimate(m_sensorPos,m_sensorInd,v_measurements,[]);
+			
+			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
+			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_estTikhonov),'tit','Estimated (Tikhonov)');		
+			F3 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_estL1PCO),'tit','Estimated (L1/PCO)');
+			F4 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_estTotalvariation),'tit','Estimated (TV)');
+
+			F = F_figure('multiplot_array',[F1 F2; F3 F4],'pos',[100.0000  402.0000  [592.3077  592.3077]]);		
+			
+        end
         
         
 		% This is a toy simulation for a non-blind shadow loss field
@@ -121,7 +161,7 @@ classdef CGCartographySimulations < simFunctionSet
 			s_numGrid = size(m_F,1) * size(m_F,2);
 			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
 			h_w = @(phi1,phi2) (1/sqrt(phi1))*(phi2<phi1+lambda_W/2); % normalized ellipse model
-			s_measurementNum = 500;
+			s_measurementNum = 300;
             s_pathLossExponent = 2;
             s_sensorNum = 120;
             s_avgSensorGain = 20;
@@ -130,17 +170,12 @@ classdef CGCartographySimulations < simFunctionSet
 			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
 			
 			% Create estimator
-			ch_reg_f_type = 'tikhonov'; %'l1_PCO'; %'totalvariation';			
+			ch_reg_f_type = 'l1_PCO'; %'l1_PCO'; %'totalvariation';			
 			ch_calibrationType = 'simultaneous'; % 'none','previous','simultaneous'
-			if strcmp(ch_calibrationType,'simultaneous') ==1
-				m_tikhonov = 1e-8 * diag(ones(s_sensorNum+1+s_numGrid,1));
-				m_tikhonov(s_sensorNum+2:end,s_sensorNum+2:end) = eye(s_numGrid);
-			else
-				m_tikhonov = eye(s_numGrid);
-			end
-			mu_f = 1e-4;
+            m_tikhonov = eye(s_numGrid);
+			mu_f = 1e-4; % 1e-4 for l1, 1e-5 for total variation
 			ini_F = randn(size(m_F));
-            rho =  1e-2; % for ISTA, rho is roughtly 2.5
+            rho =  2.5; % 2.5 for ISTA, 1e-4 for total variation
 			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov);
 			
 			% SIMULATION
