@@ -64,45 +64,97 @@ classdef CGCartographySimulations < simFunctionSet
 		
 		% This is a toy simulation for a non-blind shadow loss field
 		% estimation. No simultaneous calibration (estimator knows path
-		% loss exponent and sensor gains)
+		% loss exponent and sensor gains).  
 		function F = compute_fig_2001(obj,niter)
-			
-			
+						
 			% Create data genator
 			m_F = csvread('Map_15_15.csv');
 			m_F = m_F/max(max(m_F));
+			s_numGrid = size(m_F,1) * size(m_F,2);
 			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
 			h_w = @(phi1,phi2) (1/sqrt(phi1))*(phi2<phi1+lambda_W/2); % normalized ellipse model
-			s_measurementNum = 200;   
+			s_measurementNum = 200;
+            s_pathLossExponent = 2;
+            v_gains = [];
 			s_noiseVar = 0.001;% noise variance
-			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar);
+			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
 			
 			% Create estimator
 			ch_reg_f_type = 'tikhonov'; %'l1_PCO'; %'totalvariation';
+			m_tikhonov = eye(s_numGrid);
+			ch_calibrationType = 'none'; % 'none','previous','simultaneous'
 			mu_f = 1e-4;
 			ini_F = randn(size(m_F));
-            rho =  1e-2;
-			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho);
+            rho =  1e-2; % for ISTA, rho is roughtly 2.5
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov);
+						
+			% SIMULATION
+			% A) data generation
+			[m_sensorPos,m_sensorInd,v_measurements] = dataGenerator.realization();
 			
+			% B) estimation
+			[m_F_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,[]);
+			
+			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
+			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');			
+			F = F_figure('multiplot_array',[F1 F2]);		
+			
+        end
+		
+		
+		% comparison of different regularizers (to be coded)
+        
+        
+		% This is a toy simulation for a non-blind shadow loss field
+		% estimation. Independent calibration for Tx/Rx gains and path loss exponent
+		% (estimator only knows sensor locations, (shadowing/non-shadowing) channel gain measurements.
+		% Non-shadowing measurements are used to estimate the Tx/Rx gains and path loss exponent 
+		% vias a least-squares estimator.
+		% To run this code, simply set s_pathLossExponent as []
+		% for the argument of the estimator "ChannelGainMapEstimator".
+		
+		function F = compute_fig_2003(obj,niter)
+						
+			% Create data genator
+			m_F = csvread('Map_15_15.csv');
+			m_F = m_F/max(max(m_F));
+			s_numGrid = size(m_F,1) * size(m_F,2);
+			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
+			h_w = @(phi1,phi2) (1/sqrt(phi1))*(phi2<phi1+lambda_W/2); % normalized ellipse model
+			s_measurementNum = 500;
+            s_pathLossExponent = 2;
+            s_sensorNum = 120;
+            s_avgSensorGain = 20;
+            v_gains = s_avgSensorGain + rand(s_sensorNum,1) .* (2 * (rand(s_sensorNum,1) < 0.5) - 1);
+			s_noiseVar = 0.001;% noise variance
+			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
+			
+			% Create estimator
+			ch_reg_f_type = 'tikhonov'; %'l1_PCO'; %'totalvariation';			
+			ch_calibrationType = 'simultaneous'; % 'none','previous','simultaneous'
+			if strcmp(ch_calibrationType,'simultaneous') ==1
+				m_tikhonov = 1e-8 * diag(ones(s_sensorNum+1+s_numGrid,1));
+				m_tikhonov(s_sensorNum+2:end,s_sensorNum+2:end) = eye(s_numGrid);
+			else
+				m_tikhonov = eye(s_numGrid);
+			end
+			mu_f = 1e-4;
+			ini_F = randn(size(m_F));
+            rho =  1e-2; % for ISTA, rho is roughtly 2.5
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov);
 			
 			% SIMULATION
 			% A) data generation
-			[s_check,m_txPos,m_rxPos] = dataGenerator.realization();
+			[m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing] = dataGenerator.realization();
 			
 			% B) estimation
-			[m_F_est] = est.estimate(s_check,m_txPos,m_rxPos);
+			[m_F_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
 			
 			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
 			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');			
 			F = F_figure('multiplot_array',[F1 F2]);
-			
-			
-		
-			
-		end% This is a toy simulation for a non-blind shadow loss field
-		
-		
-		% comparison of different regularizers (to be coded)
+					
+        end
 		
 		
 		

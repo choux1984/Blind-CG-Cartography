@@ -19,18 +19,21 @@ classdef SensorMeasurementsGenerator < Parameter
 	
 	methods(Abstract)
 		
-		[m_sensorPos,m_sensorInd,v_measurements] = realization(obj);
+		[m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing] = realization(obj);
 		% m_sensorPos  is a 2 x #sensors matrix where the i-th column
 		%              indicates the (x,y) coordinates of the i-th sensor
 		% m_sensorInd  is a 2 x #measurements matrix where m_sensorInd(1,i)
 		%              and m_sensorInd(2,i) are the indices of the sensors
 		%              for measurement i.
-		% v_measurements is a 1 x #measurements vector where
+		% v_measurements is a #measurements x 1 vector where
 		%              v_measurements(i) is the i-th measurement, containing
 		%              path loss, the gain of sensors with indices m_sensorInd(1,i)
 		%              and m_sensorInd(2,i), and the shadowing due to
 		%              absorption of the medium. 
-		%
+		% v_measurementsNoShadowing is a #measurements x 1 vector where
+		%              v_measurements(i) is the i-th measurement,
+		%              containing only path loss and the gain of sensors with indices m_sensorInd(1,i)
+		%              and m_sensorInd(2,i).
 		
 		
 	end
