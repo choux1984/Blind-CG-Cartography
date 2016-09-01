@@ -51,7 +51,8 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
             %  v_measurementsNoShadowing (s_measurementNum-by-1) a set of channel gain measurements from free space
             
             
-			% 1. Generate sensor locations
+			% 1. Generate sensor locations and sum of sensor gain on each
+			% pair of sensors			
             [N_x,N_y] = size(obj.m_F);
 			if isempty(obj.v_gains)  % one pair of sensors generated per measurement
 				
@@ -85,6 +86,7 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 					m_sensorInd(:,s_measurementInd) = randperm(s_sensorNum,2)';
 					v_sumOfGains(s_measurementInd,1) = obj.v_gains(m_sensorInd(1,s_measurementInd)) + obj.v_gains(m_sensorInd(2,s_measurementInd));
 				end
+				
 			end
 			
 			% 2. Obtain measurements from obj.m_F, obj.h_w, and sensor
@@ -105,6 +107,31 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 			
 		end
 		
+		function [m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing] = realDataRealization(obj)
+			% OUTPUT: 
+			%  m_sensorPos      (2-by-s_sensorNum) a matrix containing every position of a sensor
+            %  m_sensorInd      (2-by-s_measurementNum) a matrix contating 
+            %                    Tx/Rx sensor indices. The 1st row contains
+            %                    indices of Transmitters. The 2nd row contains
+            %                    indices of receivers.
+            %  v_measurements    (s_measurementNum-by-1) a set of channel gain measurements.
+            %  v_measurementsNoShadowing (s_measurementNum-by-1) a set of channel gain measurements from free space
+            
+            
+			% 1. Generate sensor locations and indices for every pair of
+			% sensors
+			
+			m_sensorPos = [];
+			m_sensorInd = [];
+			
+			
+			% 2. Obtain measurements from obj.m_F, obj.h_w, and sensor
+			% locations
+			v_measurementsNoShadowing = [];
+			v_measurements = [];
+			
+		end
+		
 		
     end 
 	
@@ -113,18 +140,18 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 		function s_shadowMeasurement = getNoiselessMeasurements(m_F,h_w,v_txPos,v_rxPos)
 			%
 			% INPUT:
-			%  v_txPos     2 x 1 vector with tx position
-			%  v_rxPos     2 x 1 vector with rx position
+			%  v_txPos                  2 x 1 vector with tx position
+			%  v_rxPos                  2 x 1 vector with rx position
 			%
             % OUTPUT:
-			%    s         shadowing measurement
+			%  s_shadowMeasurement      shadowing measurement
 			%
 			
 			% 1. compute m_W matrix
-			[sizeX,sizeY] = size(m_F);
-            x_axis = repmat((1:sizeY), sizeX, 1);    % x_axis of a grid
-			y_axis = repmat((sizeX:-1:1)', 1, sizeY); % y_axis of a grid
-                       
+			[N_x,N_y] = size(m_F);
+            x_axis = repmat((0:N_y-1), N_x, 1);    % x_axis of a grid
+			y_axis = repmat((N_x-1:-1:0)', 1, N_y); % y_axis of a grid
+			           
 			phi1 = norm(v_txPos-v_rxPos);
 			phi2 = sqrt( (x_axis-v_txPos(1)).^2 + (y_axis-v_txPos(2)).^2 ) + sqrt( (x_axis-v_rxPos(1)).^2 + (y_axis-v_rxPos(2)).^2 );
 						
@@ -133,7 +160,7 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 			% 2. multiply m_F and m_W
 			s_shadowMeasurement = sum(sum(m_W.*m_F)); % signal w/o noise
 									
-        end
+		end
 						
 	end
 	

@@ -22,13 +22,13 @@ classdef ChannelGainMapEstimator < Parameter
 		m_tikhonov	 % tikhonov matrix to define a tikhonov regularizer, i.e., R(v_f) = v_f' * m_tik * v_f 
 		mu_f         % Regularization parameter for spatial loss field
 				
-		ch_estimationType = 'non-blind';
+		ch_estimationType
 		             % 'non-blind'
 					 % 'blind'
 					 %
 		
         % calibration
-		ch_calibrationType 
+		ch_calibrationType = 'none';
 		             %  'none'  : values of pathloss and gains taken from
 		             %            the properties below
 					 %  'previous' : first calibration and then estimation
@@ -37,16 +37,22 @@ classdef ChannelGainMapEstimator < Parameter
 		s_pathLossExponent; 
 		v_gains;
 					 
-		
+		% estimation
+		rho          % step size for (ISTA/ADMM) algorithm
+		s_resolution = 1;% scaling factor to decide a resolution of an output image, e.g s_resolution = 1 (default)
+		                % resolution of the output changes only for real dataset.              
+		 
 		% non-blind estimation
 		h_w = [];    %  
 		
 		% blind estimation
 		mu_w         % Regularization parameter for weight function		
-		myKfunc = [];% Kernel function: must take a scalar ---> change to take two vectors
-		Nc           % Number of clusters; Set Nc = [] for no clustering		
+		h_kernel;    % Kernel function to interpolate a weight function. e.g. Gaussian kernel
+		s_clusterNum % Number of clusters; Set Nc = [] for no clustering
+		ch_clustType % Types of feature clusterting, and corresponding cluster centroids. 
+		             % 'random' : random sampling 
+					 % 'kmeans' : k-means
 		lambda_W     % h_w is estimated with domain equal to an ellipse whose semi-minor axis is lambda_W
-		rho          % step size for (ISTA/ADMM) algorithm
 	end
 		
 	methods % estimator
@@ -69,8 +75,6 @@ classdef ChannelGainMapEstimator < Parameter
 			
 			% dependent variables
 			[N_x, N_y] = size(obj.ini_F);
-			Ng = N_x * N_y; % # of grid points			
-			t = length(v_measurements);
 						
 			% Estimation
 			switch obj.ch_estimationType
@@ -79,16 +83,20 @@ classdef ChannelGainMapEstimator < Parameter
 					h_w_est = [];
 					
 				case 'blind'
-
+					[m_F_est,h_w_est] = obj.blindEstimation(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
 					% (finish this)
-					assert( obj.Nc <= Ng*t );
-					[evl_pnt,idx_phi,phi_col]  = generate_feature_vecs(N_x,N_y,Tx_pos,Rx_pos,Nc,clustering_type,lambda_W);
-					K = myKmatrix(evl_pnt,myKfunc);
 					
-					[alpha,est_f] = blind_est(K,idx_phi,s_check,mu_w,ini_F(:),eps_error,max_itr,mu_f,reg_f_type,rho);
-					w = @(input)  myRepThm(alpha,evl_pnt,input,myKfunc);
-					est_F = reshape(est_f,N_x,N_y);
-				
+					
+					
+					
+% 					assert( obj.Nc <= Ng*t );
+% 					[evl_pnt,idx_phi,phi_col]  = generate_feature_vecs(N_x,N_y,Tx_pos,Rx_pos,Nc,clustering_type,lambda_W);
+% 					K = myKmatrix(evl_pnt,myKfunc);
+% 					
+% 					[alpha,est_f] = blind_est(K,idx_phi,s_check,mu_w,ini_F(:),eps_error,max_itr,mu_f,reg_f_type,rho);
+% 					w = @(input)  myRepThm(alpha,evl_pnt,input,myKfunc);
+% 					est_F = reshape(est_f,N_x,N_y);
+% 				
 									
 				otherwise
 					error('unrecognized option');
@@ -108,11 +116,11 @@ classdef ChannelGainMapEstimator < Parameter
             
             % 1. Compute a weight matrix for each pair of Tx / Rx from m_txPos / m_rxPos
             [N_x, N_y] = size(obj.ini_F);
-            s_gridNum = N_x * N_y;
-            s_measurementNum = length(v_measurements);
-            x_axis = repmat((1:N_y), N_x, 1);    % x_axis of a grid
-			y_axis = repmat((N_x:-1:1)', 1, N_y); % y_axis of a grid
-          
+			s_gridNum = N_x * N_y;
+            s_measurementNum = length(v_measurements);			
+			x_axis = repmat((0:N_y-1)./obj.s_resolution, N_x, 1);   % x_axis of a grid
+			y_axis = repmat((N_x-1:-1:0)'./obj.s_resolution, 1, N_y); % y_axis of a grid
+
             m_vecWCollection = zeros(s_gridNum,s_measurementNum);
             for s_measurementInd = 1 : s_measurementNum
                 v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
@@ -160,6 +168,99 @@ classdef ChannelGainMapEstimator < Parameter
 			end
           
 			m_F_est = reshape(v_f_est,N_x,N_y);			
+		end
+		
+		function [m_F_est,h_w_est] = blindEstimation(obj,m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing)
+			% Estimate a spatial loss field in blind fashion with a
+			% chosen regularizer for the SLF(tikhonov, l-1, and total variation).
+			% In addition, a weight function is estimated with a kernel
+			% method. In particular, the weight function lies in
+			% reproducing kernel hilbert space. Complexity of the function
+			% is controllable by a hilbert norm.
+                        
+            % 1. Compute features and correponding kernel matrix. For a
+            % practical purpose, features are clustered and represented by
+            % much less number of cluster centroids. Those
+            % centroids are found by either 'random' sampling, or
+            % well-known 'k-means'.
+			
+            [N_x, N_y] = size(obj.ini_F);
+            s_gridNum = N_x * N_y;
+            s_measurementNum = length(v_measurements);
+			
+			% check
+			assert( obj.s_clusterNum <= s_gridNum*s_measurementNum );
+			
+			% Code here
+			% obtain centroids with inputs of
+			% m_sensorPos,m_sensorInd,obj.s_clusterNum, and
+			% obj.ch_clustType.
+			
+			
+			% Code here
+			% find a kernel matrix with centroids obtained above and a
+			% selected kernel function obj.h_kernel
+			
+			
+			
+            % 2. Estimate m_F_est according to obj.ch_reg_f_type (regularizer type) and ch_calibrationType
+			%    and v_alpha.
+				
+			% alternating minimization setup
+            prev_v_f = obj.ini_F(:);
+            s_stoppingCriterion = 1e-5;
+			s_iterationMax = 1e2;
+            estimateDifference = inf;
+			
+            switch obj.ch_calibrationType
+				case 'none'
+					[v_sumOfGains,v_pathLoss] = obj.parameterEstimator(m_sensorPos,m_sensorInd,[]);
+					s_check = -1 * (v_measurements - (v_sumOfGains - v_pathLoss));
+					
+					s_iterationNum = 1;
+					while (estimateDifference > s_stoppingCriterion) && (s_iterationNum < s_iterationMax)
+						
+						% [S1] estimate v_alpha
+						
+						% [S2] estimate v_f_est
+						estimateDifference = norm(prev_v_f - v_f_est,2);
+						prev_v_f = v_f_est;
+						s_iterationNum = s_iterationNum + 1;
+					end
+					
+					
+					v_f_est = obj.chooseSolver(s_check,m_vecWCollection);
+				case 'previous'
+					[v_sumOfGains,v_pathLoss] = obj.parameterEstimator(m_sensorPos,m_sensorInd,v_measurementsNoShadowing);
+					s_check = -1 * (v_measurements - (v_sumOfGains - v_pathLoss));
+					v_f_est = obj.chooseSolver(s_check,m_vecWCollection);
+				case 'simultaneous'
+					% we need an estimator jointly estimating v_f_est,
+					% pathloss exponent, and tx/rx gains only with shadow-faded channel
+					% gain measurements
+					s_sensorNum = size(m_sensorPos,2);
+					v_sensorDistancesdB = zeros(s_measurementNum,1);
+					
+					m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
+					for s_measurementInd = 1: s_measurementNum
+						v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
+						v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
+						v_sensorDistancesdB(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
+					end
+					
+					m_barI = eye(s_measurementNum) - (1/(norm(v_sensorDistancesdB,2)^2))*(v_sensorDistancesdB)*(v_sensorDistancesdB');
+					m_tempOmega = m_barI * m_Omega;
+					% add "1e-4 * eye(s_sensorNum)" to "m_tempOmega' * m_tempOmega" for matrix inversion
+					m_barOmega = m_Omega * ((m_tempOmega' * m_tempOmega + 1e-4 * eye(s_sensorNum)) \ (m_tempOmega' * m_barI));
+					m_tildeI = m_barI * (eye(s_measurementNum) - m_barOmega);
+					v_barmeasurements = m_tildeI * v_measurements;
+					m_barvecWCollection = -1 * m_vecWCollection * m_tildeI';
+					v_f_est = obj.chooseSolver(v_barmeasurements,m_barvecWCollection);
+			end
+          
+			% blind estimator outputs
+			m_F_est = reshape(v_f_est,N_x,N_y);			
+			h_w_est = @(input)  myRepThm(alpha,evl_pnt,input,myKfunc);
 		end
 		
 		function [v_sumOfGains,v_pathLoss] = parameterEstimator(obj,m_sensorPos,m_sensorInd,v_measurementsNoShadowing)
@@ -430,7 +531,10 @@ classdef ChannelGainMapEstimator < Parameter
 				m_Omega(s_measurementIdx,m_sensorInd(:,s_measurementIdx)')=1;
 			end
 
-        end
+		end
+		
+		function m_K = kernelMatrix()
+		end
 
 	end
 	
