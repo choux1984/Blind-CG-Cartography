@@ -19,7 +19,6 @@ classdef ChannelGainMapEstimator < Parameter
 		             %     'tikhonov'= Tikhonov;
 		             %     'l1_ISTA' = l_1 solved with ISTA; 'l1_PCO' = l_1 solved with pathwise coordinate opt.;
 		             %     'totalvariation' = total variation
-		m_tikhonov	 % tikhonov matrix to define a tikhonov regularizer, i.e., R(v_f) = v_f' * m_tik * v_f 
 		mu_f         % Regularization parameter for spatial loss field
 				
 		ch_estimationType
@@ -40,7 +39,19 @@ classdef ChannelGainMapEstimator < Parameter
 		% estimation
 		rho          % step size for (ISTA/ADMM) algorithm
 		s_resolution = 1;% scaling factor to decide a resolution of an output image, e.g s_resolution = 1 (default)
-		                % resolution of the output changes only for real dataset.              
+		                % resolution of the output changes only for real dataset.    
+		ch_dataType = 'synthetic';
+		             % 'synthetic' : synthetic dataset
+					 % 'real'      : real dataset.
+					 %               This option is required to manually
+					 %               load m_Omega (sensor mapping matrix)
+					 %               for estimating sensor gains. Sensor locations
+					 %               are not ideally controlled so that
+					 %               there are measurements not in right
+					 %               order. Moreover, there is a misalignment of sensor
+					 %               locations so that the same m_sensorPos
+					 %               cannot be used in calibrating measurments and
+					 %               estimating the SLF.
 		 
 		% non-blind estimation
 		h_w = [];    %  
@@ -104,60 +115,87 @@ classdef ChannelGainMapEstimator < Parameter
 				 
 		end
 		
-		function m_F_est  = nonblindEstimation(obj,m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing)
-			% write this using obj.ch_reg_f_type, obj.h_w and obj.mu_f
+		function m_F_est  = nonblindEstimation(obj,t_sensorPos,t_sensorInd,v_measurements,v_measurementsNoShadowing)
 			% Estimate a spatial loss field in non-blind fashion with a
 			% chosen regularizer (tikhonov, l-1, and total variation).
-            
+			
+			% With slight abuse of notation, the argument m_sensorPos
+			% should be a tensor for "real" dataset (1st slab for the
+			% non-structure test and 2nd slab for the stuctured test since
+			% locations of sensors in both tests are not coincident due to
+			% the mislaignment of sensor locations). 
+								         
 			% check
 			if isempty(obj.ini_F)&&(strcmp(obj.ch_reg_f_type,'tikhonov')==0)
 				assert(~isempty(obj.ini_F));				
-            end
+			end
+			
+			if strcmp(obj.ch_dataType,'real')
+				assert(~strcmp(obj.ch_calibrationType,'none'),'Selected option is not valid.');
+			end
             
             % 1. Compute a weight matrix for each pair of Tx / Rx from m_txPos / m_rxPos
             [N_x, N_y] = size(obj.ini_F);
 			s_gridNum = N_x * N_y;
-            s_measurementNum = length(v_measurements);			
+            s_measurementNum = length(v_measurements); 
 			x_axis = repmat((0:N_y-1)./obj.s_resolution, N_x, 1);   % x_axis of a grid
 			y_axis = repmat((N_x-1:-1:0)'./obj.s_resolution, 1, N_y); % y_axis of a grid
-
+			
+			switch obj.ch_dataType
+				case 'synthetic'
+					m_sensorPos=t_sensorPos;
+					m_sensorInd=t_sensorInd;
+				case 'real'
+					m_sensorPos=t_sensorPos(:,:,2);
+					m_sensorInd=t_sensorInd(:,:,2);
+					s_measurementNum = s_measurementNum + 20; % compensate 20 missing measurements
+			end
+			
             m_vecWCollection = zeros(s_gridNum,s_measurementNum);
-            for s_measurementInd = 1 : s_measurementNum
-                v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
-                v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
-
-                phi1 = norm(v_txPos-v_rxPos);
-                phi2 = sqrt( (x_axis-v_txPos(1)).^2 + (y_axis-v_txPos(2)).^2 ) + sqrt( (x_axis-v_rxPos(1)).^2 + (y_axis-v_rxPos(2)).^2 );
-
-                m_W = obj.h_w(phi1,phi2);
-                m_vecWCollection(:,s_measurementInd) = m_W(:);
-            end
-
+			for s_measurementInd = 1 : s_measurementNum
+				v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
+				v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
+				
+				phi1 = norm(v_txPos-v_rxPos);
+				phi2 = sqrt( (x_axis-v_txPos(1)).^2 + (y_axis-v_txPos(2)).^2 ) + sqrt( (x_axis-v_rxPos(1)).^2 + (y_axis-v_rxPos(2)).^2 );
+				
+				m_W = obj.h_w(phi1,phi2);
+				m_vecWCollection(:,s_measurementInd) = m_W(:);
+			end
+			
             % 2. Estimate m_F_est according to obj.ch_reg_f_type (regularizer type) and ch_calibrationType.
-            switch obj.ch_calibrationType
+			switch obj.ch_calibrationType
 				case 'none'
 					[v_sumOfGains,v_pathLoss] = obj.parameterEstimator(m_sensorPos,m_sensorInd,[]);
 					s_check = -1 * (v_measurements - (v_sumOfGains - v_pathLoss));
 					v_f_est = obj.chooseSolver(s_check,m_vecWCollection);
 				case 'previous'
-					[v_sumOfGains,v_pathLoss] = obj.parameterEstimator(m_sensorPos,m_sensorInd,v_measurementsNoShadowing);
-					s_check = -1 * (v_measurements - (v_sumOfGains - v_pathLoss));
+					% for real data simulation, m_sensorPos' for structured
+					% and free spaces are required
+					switch obj.ch_dataType
+						case 'synthetic'
+							[v_sumOfGains,v_pathLoss] = obj.parameterEstimator(m_sensorPos,m_sensorInd,v_measurementsNoShadowing);
+						case 'real'
+							[v_sumOfGains,v_pathLoss] = obj.parameterEstimatorReal(t_sensorPos,t_sensorInd,v_measurementsNoShadowing);
+							m_vecWCollection = m_vecWCollection(:,[1:580,601:2400]); % compensate 20 missing measurements
+					end
+					s_check =  1 * (v_measurements - (v_sumOfGains - v_pathLoss));
 					v_f_est = obj.chooseSolver(s_check,m_vecWCollection);
 				case 'simultaneous'
 					% we need an estimator jointly estimating v_f_est,
 					% pathloss exponent, and tx/rx gains only with shadow-faded channel
 					% gain measurements
 					s_sensorNum = size(m_sensorPos,2);
-					v_sensorDistancesdB = zeros(s_measurementNum,1);
+					v_sensorDistances = zeros(s_measurementNum,1);
 					
 					m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
 					for s_measurementInd = 1: s_measurementNum
 						v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
 						v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
-						v_sensorDistancesdB(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
+						v_sensorDistances(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
 					end
 					
-					m_barI = eye(s_measurementNum) - (1/(norm(v_sensorDistancesdB,2)^2))*(v_sensorDistancesdB)*(v_sensorDistancesdB');
+					m_barI = eye(s_measurementNum) - (1/(norm(v_sensorDistances,2)^2))*(v_sensorDistances)*(v_sensorDistances');
 					m_tempOmega = m_barI * m_Omega;
 					% add "1e-4 * eye(s_sensorNum)" to "m_tempOmega' * m_tempOmega" for matrix inversion
 					m_barOmega = m_Omega * ((m_tempOmega' * m_tempOmega + 1e-4 * eye(s_sensorNum)) \ (m_tempOmega' * m_barI));
@@ -270,13 +308,14 @@ classdef ChannelGainMapEstimator < Parameter
 			
 			s_measurementNum = size(m_sensorInd,2);
 			s_sensorNum = size(m_sensorPos,2);
-			v_sensorDistancesdB = zeros(s_measurementNum,1);
+			v_sensorDistances = zeros(s_measurementNum,1);
 			
 			m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
+	
 			for s_measurementInd = 1: s_measurementNum
 				v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
 				v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
-				v_sensorDistancesdB(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
+				v_sensorDistances(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
 			end
 			
 			if  isempty(v_measurementsNoShadowing) % when ch_calibrationType = 'none'
@@ -288,18 +327,65 @@ classdef ChannelGainMapEstimator < Parameter
 				s_pathLossExponent_est = obj.s_pathLossExponent;
 			else % when ch_calibrationType = 'previous'
 				% v_estGains / s_estPathLossExponent should be estimated
-				m_regMat = [m_Omega,-1 * v_sensorDistancesdB];
+				m_regMat = [m_Omega,-1 * v_sensorDistances];
 				v_parameters = (m_regMat'*m_regMat + 1e-12* eye(s_sensorNum + 1))\(m_regMat'*v_measurementsNoShadowing);
 				v_gains_est = v_parameters(1:s_sensorNum,1);
 				s_pathLossExponent_est = v_parameters(s_sensorNum+1,1);
 			end
 						
 			% v_estGains and s_estPathLossExponent should be known or
-			% estimated before this step.			
+			% estimated before this step.
+			
 			v_sumOfGains = m_Omega * v_gains_est;
-			v_pathLoss = s_pathLossExponent_est * v_sensorDistancesdB;
+			v_pathLoss = s_pathLossExponent_est * v_sensorDistances;
 		end
 		
+		function [v_sumOfGains,v_pathLoss] = parameterEstimatorReal(obj,t_sensorPos,t_sensorInd,v_measurementsNoShadowing)
+			% Estimate(or assign) the sumOfGain and pathloss for every pair
+			% of sensors using structure and non-structured datasets.
+			
+			% 1. Parameter estimation through non-structured measurements
+			m_sensorPosNoShadow=t_sensorPos(:,:,1);
+			m_sensorIndNoShadow=t_sensorInd(:,:,1);
+			
+			s_measurementNum = size(m_sensorIndNoShadow,2);
+			v_sensorDistancesNoShadow = zeros(s_measurementNum,1);
+			
+			m_OmegaNoShadow = csvread('m_Omega_free.csv');
+			s_sensorNum = size(m_OmegaNoShadow,2);
+
+			for s_measurementInd = 1: s_measurementNum
+				v_txPos = m_sensorPosNoShadow(:,m_sensorIndNoShadow(1,s_measurementInd));
+				v_rxPos = m_sensorPosNoShadow(:,m_sensorIndNoShadow(2,s_measurementInd));
+				v_sensorDistancesNoShadow(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
+			end
+			
+			m_regMat = [m_OmegaNoShadow,-1 * v_sensorDistancesNoShadow];
+			v_parameters = (m_regMat'*m_regMat + 1e-12* eye(s_sensorNum + 1))\(m_regMat'*v_measurementsNoShadowing);
+			v_gains_est = v_parameters(1:s_sensorNum,1);
+			s_pathLossExponent_est = v_parameters(s_sensorNum+1,1);
+			
+			% 2. determine v_sumOfGains and v_pathLoss for the structured
+			% dataset.
+			m_sensorPos=t_sensorPos(:,:,2);
+			m_sensorInd=t_sensorInd(:,:,2);
+			
+			v_sensorDistances = zeros(s_measurementNum,1);
+			for s_measurementInd = 1: s_measurementNum
+				v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
+				v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
+				v_sensorDistances(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
+			end
+			
+			m_Omega = csvread('m_Omega.csv'); % due to measurements from sensors not conforming to the sensor selction rule	
+			v_sumOfGains = m_Omega * v_gains_est;
+			v_pathLoss = s_pathLossExponent_est * v_sensorDistances;
+			
+			% Measurements from 581 - 600 are missing in structured test.
+			v_sumOfGains = v_sumOfGains([1:580,601:end],1);
+			v_pathLoss = v_pathLoss([1:580,601:end],1);
+		end
+
 		function v_f_est = chooseSolver(obj,s_check,m_vecWCollection)
 			% choose a solver among 'tikhonov'/'l1_ISTA'/'l1_PCO'/'totalvariation' 
 			% according to a regularization type (ch_reg_f_type).
@@ -307,7 +393,14 @@ classdef ChannelGainMapEstimator < Parameter
             switch obj.ch_reg_f_type
 
                 case 'tikhonov'
-                    v_f_est = ChannelGainMapEstimator.ridgeRegression(m_vecWCollection,s_check,obj.mu_f,obj.m_tikhonov);
+					switch obj.ch_dataType
+						case 'synthetic'
+							m_tikhonov = eye(N_x*N_y);
+						case 'real'
+							m_spatialCov = ChannelGainMapEstimator.spatialCovMat(N_x,N_y,obj.s_resolution);
+							m_tikhonov = inv(m_spatialCov);
+					end
+                    v_f_est = ChannelGainMapEstimator.ridgeRegression(m_vecWCollection,s_check,obj.mu_f,m_tikhonov);
                 case 'l1_ISTA'
                     v_f_est = ChannelGainMapEstimator.lassoISTA(m_vecWCollection,s_check,obj.mu_f,obj.ini_F(:),obj.rho);
                 case 'l1_PCO'
@@ -452,7 +545,7 @@ classdef ChannelGainMapEstimator < Parameter
             v_d_y = zeros(size(m_D2,1),1); % aux. variable v_d_y = m_D2 * m_P * v_f
                         
             s_iterationNum = 1;
-            while (estimateDifference > s_stoppingCriterion) && (s_iterationNum < 1e4)
+            while (estimateDifference > s_stoppingCriterion) && (s_iterationNum < 1.5 * 1e2)
 
                 % [S1] Dual ascent for dual variables
                 v_gamma_x = v_gamma_x + rho * (m_D1*prev_v_f - v_d_x);
@@ -512,12 +605,13 @@ classdef ChannelGainMapEstimator < Parameter
             m_D1 = kron(eye(N_y),m_seed1);
 
             % 2-D
-            v_seed2 = [1,zeros(1,N_x-1),-1,zeros(1,N_g - (N_x +1))];
-            m_D2 = zeros(N_g-N_x,N_g);
-            for i = 1 : N_g-N_x
-                m_D2(i,:) = circshift(v_seed2,[1,i-1]);
-            end
-
+			v_seed2 = [1,-1,zeros(1,N_y-2)];
+			m_seed2 = zeros(N_y-1,N_y);
+			for i = 1 : N_y-1
+				m_seed2(i,:) = circshift(v_seed2,[1,i-1]);
+			end
+			m_D2 = kron(eye(N_x),m_seed2);
+		
             m_D = [m_D1;m_D2];
 		end
   
@@ -531,6 +625,32 @@ classdef ChannelGainMapEstimator < Parameter
 				m_Omega(s_measurementIdx,m_sensorInd(:,s_measurementIdx)')=1;
 			end
 
+		end
+		
+		function m_spatialCov = spatialCovMat(s_xAxiSize,s_yAxiSize,s_resolution)
+			% Generate a (s_xAxiSize-by-s_yAxiSize) spatial covariance
+			% matrix. Covariance between two points v_x and v_y is "exp(-1
+			% * norm(v_x - v_y) )".
+				
+			x_axis = repmat((0:s_xAxiSize-1)./s_resolution, s_yAxiSize, 1);   % x_axis of a grid
+			y_axis = repmat((s_yAxiSize-1:-1:0)'./s_resolution, 1, s_xAxiSize); % y_axis of a grid
+					
+			v_gridY = y_axis(:);
+			v_girdX = x_axis(:);
+			
+			s_gridYcovMat = size(y_axis,2);
+			s_gridXcovMat = size(x_axis,2);
+			
+			u = 1;
+			for i = 1: s_gridYcovMat * s_gridXcovMat
+				for j = 1 : s_gridYcovMat * s_gridXcovMat
+					v_spatialCov(u,1) = sqrt((v_girdX(j,1) - v_girdX(i,1))^2 + (v_gridY(j,1) - v_gridY(i,1))^2);
+					u = u + 1;
+				end
+			end
+			m_temp_spatialCov  = reshape(v_spatialCov,s_gridYcovMat*s_gridXcovMat,s_gridYcovMat*s_gridXcovMat);
+			m_spatialCov = exp(-1*m_temp_spatialCov);
+			
 		end
 		
 		function m_K = kernelMatrix()
@@ -547,6 +667,7 @@ classdef ChannelGainMapEstimator < Parameter
 			m_imageOut( m_imageOut > 1 ) = 1;
 			
 		end
+	
 		
 	end
 	

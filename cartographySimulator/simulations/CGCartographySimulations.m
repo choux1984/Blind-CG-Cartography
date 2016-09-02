@@ -81,12 +81,11 @@ classdef CGCartographySimulations < simFunctionSet
 			
 			% Create estimator
 			ch_reg_f_type = 'tikhonov'; %'l1_PCO'; %'totalvariation';
-			m_tikhonov = eye(s_numGrid);
 			ch_estimationType = 'non-blind';
 			mu_f = 1e-4;
 			ini_F = randn(size(m_F));
             rho =  1e-2; % for ISTA, rho is roughtly 2.5
-			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'m_tikhonov',m_tikhonov,'ch_estimationType',ch_estimationType);
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_estimationType',ch_estimationType);
 						
 			% SIMULATION
 			% A) data generation
@@ -119,11 +118,10 @@ classdef CGCartographySimulations < simFunctionSet
 			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
 			
 			% Create estimator
-			m_tikhonov = eye(s_numGrid);
 			ch_calibrationType = 'none'; % 'none','previous','simultaneous'
 			ch_estimationType = 'non-blind';
 			ini_F = randn(size(m_F));
-			estTikhonov = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','tikhonov','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov,'ch_estimationType',ch_estimationType);
+			estTikhonov = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','tikhonov','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 			estL1PCO = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','l1_PCO','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 			estTotalvariation = ChannelGainMapEstimator('mu_f',1e-5,'ch_reg_f_type','totalvariation','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',1e-4,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 					
@@ -172,11 +170,10 @@ classdef CGCartographySimulations < simFunctionSet
 			ch_reg_f_type = 'l1_PCO'; %'l1_PCO'; %'totalvariation';			
 			ch_calibrationType = 'previous'; % 'none','previous','simultaneous'
 			ch_estimationType = 'non-blind';
-            m_tikhonov = eye(s_numGrid);
 			mu_f = 1e-4; % 1e-4 for l1, 1e-5 for total variation
 			ini_F = randn(size(m_F));
             rho =  2.5; % 2.5 for ISTA, 1e-4 for total variation
-			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov,'ch_estimationType',ch_estimationType);
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 			
 			% SIMULATION
 			% A) data generation
@@ -215,13 +212,12 @@ classdef CGCartographySimulations < simFunctionSet
 			
 			% Create estimator
 			ch_reg_f_type = 'l1_PCO'; %'l1_PCO'; %'totalvariation';			
-			ch_calibrationType = 'simultaneous'; % 'none','previous','simultaneous'
+			ch_calibrationType = 'previous'; % 'none','previous','simultaneous'
 			ch_estimationType = 'non-blind';
-            m_tikhonov = eye(s_numGrid);
 			mu_f = 1e-4; % 1e-4 for l1, 1e-5 for total variation
 			ini_F = randn(size(m_F));
             rho =  2.5; % 2.5 for ISTA, 1e-4 for total variation
-			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov,'ch_estimationType',ch_estimationType);
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 			
 			% SIMULATION
 			% A) data generation
@@ -259,11 +255,10 @@ classdef CGCartographySimulations < simFunctionSet
 			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
 			
 			% Create estimator
-			m_tikhonov = eye(s_numGrid);
 			ch_calibrationType = 'simultaneous'; % 'none','previous','simultaneous'
 			ch_estimationType = 'non-blind';
 			ini_F = randn(size(m_F));
-			estTikhonov = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','tikhonov','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov,'ch_estimationType',ch_estimationType);
+			estTikhonov = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','tikhonov','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 			estL1PCO = ChannelGainMapEstimator('mu_f',1e-4,'ch_reg_f_type','l1_PCO','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 			estTotalvariation = ChannelGainMapEstimator('mu_f',1e-5,'ch_reg_f_type','totalvariation','h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',1e-4,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType);
 					
@@ -286,7 +281,7 @@ classdef CGCartographySimulations < simFunctionSet
 		end
 		
 		
-		% High resolution reconstruction test.
+		% This is a test for spatial loss field reconstruction in higher resolution.
 		function F = compute_fig_2006(obj,niter)
 						
 			% Create data genator
@@ -309,9 +304,8 @@ classdef CGCartographySimulations < simFunctionSet
 			s_xAxiSize = (N_y-1)*s_resolution+1;
 			s_yAxiSize = (N_x-1)*s_resolution+1;
 			ini_F = randn(s_yAxiSize,s_xAxiSize);
-			m_tikhonov = eye(s_xAxiSize * s_yAxiSize);
             rho =  1e-3; % for ISTA, rho is roughtly 2.5
-			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType',ch_estimationType,'rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'m_tikhonov',m_tikhonov,'ch_estimationType',ch_estimationType,'s_resolution',s_resolution);
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType',ch_estimationType,'rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_estimationType',ch_estimationType,'s_resolution',s_resolution);
 						
 			% SIMULATION
 			% A) data generation
@@ -386,42 +380,38 @@ classdef CGCartographySimulations < simFunctionSet
 		function F = compute_fig_4001(obj,niter)
 						
 			% Create data genator
-			s_resolution = 1;
-			s_x = 20;
-			s_y = 20;
-			
-			m_F = csvread('Map_15_15.csv');
-			m_F = m_F/max(max(m_F));
-			s_numGrid = size(m_F,1) * size(m_F,2);
-			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
-			h_w = @(phi1,phi2) (1/sqrt(phi1)).*(phi2<phi1+lambda_W/2); % normalized ellipse model
-			s_measurementNum = 200;
-            s_pathLossExponent = 2;
-            v_gains = [];
-			s_noiseVar = 0.001;% noise variance
-			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
+			ch_dataType = 'real';
+			dataGenerator = RealSensorMeasurementsGenerator();
 			
 			% Create estimator
-			ch_reg_f_type = 'tikhonov'; %'l1_PCO'; %'totalvariation';
-			m_tikhonov = eye(s_numGrid);
-
-			ch_calibrationType = 'none'; % 'none','previous','simultaneous'
+			s_resolution = 2;
+			N_x = 21;
+			N_y = 21;
+			s_xAxiSize = (N_y-1) * s_resolution + 1;
+			s_yAxiSize = (N_x-1) * s_resolution + 1;
+			lambda_W = 0.3937; % parameter to determine the threshold for nonzero weights
+			h_w = @(phi1,phi2) (1/sqrt(phi1)).*(phi2<phi1+lambda_W/2); % normalized ellipse model
+		
+			ch_reg_f_type = 'totalvariation'; %'l1_PCO'; %'totalvariation';
+			ch_calibrationType = 'previous'; % should be 'previous','simultaneous'
 			ch_estimationType = 'non-blind';
-			mu_f = 1e-4;
-			ini_F = randn(size(m_F));
-            rho =  1e-2; % for ISTA, rho is roughtly 2.5
-			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'m_tikhonov',m_tikhonov,'ch_estimationType',ch_estimationType);
+			mu_f = 1e-1; % 'tikhonov' : 5 * 1e-2 / 'totalvariation': 1e-1
+			ini_F = randn(s_yAxiSize,s_xAxiSize);
+            rho =  1e-4; % for ISTA, rho is roughtly 2.5
+			est = ChannelGainMapEstimator('mu_f',mu_f,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType','non-blind','rho',rho,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType,'ch_dataType',ch_dataType,'s_resolution',s_resolution);
 						
 			% SIMULATION
 			% A) data generation
-			[m_sensorPos,m_sensorInd,v_measurements] = dataGenerator.realDataRealization();
+			[t_sensorPos,t_sensorInd,v_measurements,v_measurementsNoShadowing] = dataGenerator.realization();
 			
 			% B) estimation
-			[m_F_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,[]);
+			[m_F_est] = est.estimate(t_sensorPos,t_sensorInd,v_measurements,v_measurementsNoShadowing);
 			
-			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
-			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');			
-			F = F_figure('multiplot_array',[F1 F2]);		
+			figure
+			imagesc([m_F_est])
+			colormap('gray');
+			b = imagesc(m_F_est);
+			imcontrast(b)
 			
         end
 		

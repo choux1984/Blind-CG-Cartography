@@ -10,6 +10,8 @@ function simt(onlyplot,fnum_in,niter)
 % Initializations
 addpath('./lib/');
 addpath('./cartographySimulator/');
+addpath('./realdataset/');
+
 initializeCartographySimulator;
 %initCvx;
 assert(nargin>=1,'Not enough arguments');

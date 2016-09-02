@@ -106,33 +106,7 @@ classdef SyntheticSensorMeasurementsGenerator < SensorMeasurementsGenerator
 			v_measurements =  v_sumOfGains - v_pathLoss  - v_shadowing + sqrt(obj.s_noiseVar)*randn; % put - sign on v_shadowing since the ground truth SLF only has nonnegative values.
 			
 		end
-		
-		function [m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing] = realDataRealization(obj)
-			% OUTPUT: 
-			%  m_sensorPos      (2-by-s_sensorNum) a matrix containing every position of a sensor
-            %  m_sensorInd      (2-by-s_measurementNum) a matrix contating 
-            %                    Tx/Rx sensor indices. The 1st row contains
-            %                    indices of Transmitters. The 2nd row contains
-            %                    indices of receivers.
-            %  v_measurements    (s_measurementNum-by-1) a set of channel gain measurements.
-            %  v_measurementsNoShadowing (s_measurementNum-by-1) a set of channel gain measurements from free space
-            
-            
-			% 1. Generate sensor locations and indices for every pair of
-			% sensors
 			
-			m_sensorPos = [];
-			m_sensorInd = [];
-			
-			
-			% 2. Obtain measurements from obj.m_F, obj.h_w, and sensor
-			% locations
-			v_measurementsNoShadowing = [];
-			v_measurements = [];
-			
-		end
-		
-		
     end 
 	
 	methods(Static)

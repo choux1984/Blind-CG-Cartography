@@ -5,6 +5,7 @@ Prefix   Meaning
 s_       scalar
 v_       vector
 m_       matrix
+t_       tensor
 c_       cell array
 ch_      string of characters
 str_     struct array
