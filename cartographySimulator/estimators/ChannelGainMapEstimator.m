@@ -59,7 +59,7 @@ classdef ChannelGainMapEstimator < Parameter
 		% blind estimation
 		mu_w         % Regularization parameter for weight function		
 		h_kernel;    % Kernel function to interpolate a weight function. e.g. Gaussian kernel
-		s_clusterNum % Number of clusters; Set Nc = [] for no clustering
+		s_clusterNum % Number of clusters; Set s_clusterNum = [] for no clustering
 		ch_clustType % Types of feature clusterting, and corresponding cluster centroids. 
 		             % 'random' : random sampling 
 					 % 'kmeans' : k-means
@@ -94,20 +94,7 @@ classdef ChannelGainMapEstimator < Parameter
 					h_w_est = [];
 					
 				case 'blind'
-					[m_F_est,h_w_est] = obj.blindEstimation(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
-					% (finish this)
-					
-					
-					
-					
-% 					assert( obj.Nc <= Ng*t );
-% 					[evl_pnt,idx_phi,phi_col]  = generate_feature_vecs(N_x,N_y,Tx_pos,Rx_pos,Nc,clustering_type,lambda_W);
-% 					K = myKmatrix(evl_pnt,myKfunc);
-% 					
-% 					[alpha,est_f] = blind_est(K,idx_phi,s_check,mu_w,ini_F(:),eps_error,max_itr,mu_f,reg_f_type,rho);
-% 					w = @(input)  myRepThm(alpha,evl_pnt,input,myKfunc);
-% 					est_F = reshape(est_f,N_x,N_y);
-% 				
+					[m_F_est,h_w_est] = obj.blindEstimation(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);			
 									
 				otherwise
 					error('unrecognized option');
@@ -179,22 +166,33 @@ classdef ChannelGainMapEstimator < Parameter
 							[v_sumOfGains,v_pathLoss] = obj.parameterEstimatorReal(t_sensorPos,t_sensorInd,v_measurementsNoShadowing);
 							m_vecWCollection = m_vecWCollection(:,[1:580,601:2400]); % compensate 20 missing measurements
 					end
-					s_check =  1 * (v_measurements - (v_sumOfGains - v_pathLoss));
+					s_check =  -1 * (v_measurements - (v_sumOfGains - v_pathLoss));
 					v_f_est = obj.chooseSolver(s_check,m_vecWCollection);
 				case 'simultaneous'
 					% we need an estimator jointly estimating v_f_est,
 					% pathloss exponent, and tx/rx gains only with shadow-faded channel
 					% gain measurements
-					s_sensorNum = size(m_sensorPos,2);
+
 					v_sensorDistances = zeros(s_measurementNum,1);
-					
-					m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
 					for s_measurementInd = 1: s_measurementNum
 						v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
 						v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
 						v_sensorDistances(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
 					end
 					
+					switch obj.ch_dataType
+						case 'synthetic'
+							s_sensorNum = size(m_sensorPos,2);
+							m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
+						case 'real'
+							s_sensorNum = 120;
+							s_measurementNum = 2380;
+							m_Omega = csvread('m_Omega.csv'); % due to measurements from sensors not conforming to the sensor selction rule
+							m_Omega = m_Omega([1:580,601:2400],:); % remove rows corresponding to messing measurements
+							m_vecWCollection = m_vecWCollection(:,[1:580,601:2400]); % remove cols corresponding to messing measurements
+							v_sensorDistances = v_sensorDistances([1:580,601:2400],:);
+					end
+									
 					m_barI = eye(s_measurementNum) - (1/(norm(v_sensorDistances,2)^2))*(v_sensorDistances)*(v_sensorDistances');
 					m_tempOmega = m_barI * m_Omega;
 					% add "1e-4 * eye(s_sensorNum)" to "m_tempOmega' * m_tempOmega" for matrix inversion
@@ -226,19 +224,8 @@ classdef ChannelGainMapEstimator < Parameter
             s_gridNum = N_x * N_y;
             s_measurementNum = length(v_measurements);
 			
-			% check
-			assert( obj.s_clusterNum <= s_gridNum*s_measurementNum );
-			
-			% Code here
-			% obtain centroids with inputs of
-			% m_sensorPos,m_sensorInd,obj.s_clusterNum, and
-			% obj.ch_clustType.
-			
-			
-			% Code here
-			% find a kernel matrix with centroids obtained above and a
-			% selected kernel function obj.h_kernel
-			
+			[m_centroids, v_centroidsInd]= obj.findCentroids(m_sensorPos,m_sensorInd);
+			m_K = ChannelGainMapEstimator.kernelMatrix(m_centroids,obj.h_kernel);
 			
 			
             % 2. Estimate m_F_est according to obj.ch_reg_f_type (regularizer type) and ch_calibrationType
@@ -249,6 +236,7 @@ classdef ChannelGainMapEstimator < Parameter
             s_stoppingCriterion = 1e-5;
 			s_iterationMax = 1e2;
             estimateDifference = inf;
+			m_RK = m_K(v_centroidsInd,:); % precomputation of "R*m_K"
 			
             switch obj.ch_calibrationType
 				case 'none'
@@ -259,19 +247,39 @@ classdef ChannelGainMapEstimator < Parameter
 					while (estimateDifference > s_stoppingCriterion) && (s_iterationNum < s_iterationMax)
 						
 						% [S1] estimate v_alpha
+						m_IfR = obj.computeIfR(prev_v_f,v_centroidsInd);
+						m_IfRK = m_IfR * m_K;										
+						v_alpha = ChannelGainMapEstimator.ridgeRegression(m_IfRK',s_check,obj.mu_w,m_K);
 						
 						% [S2] estimate v_f_est
+						v_RKa = m_RK * v_alpha;
+						m_A = reshape(v_RKa,s_gridNum,s_measurementNum)'; % see the definition of "A" in the paper
+						v_f_est = obj.chooseSolver(s_check,m_A');
+	
 						estimateDifference = norm(prev_v_f - v_f_est,2);
 						prev_v_f = v_f_est;
 						s_iterationNum = s_iterationNum + 1;
 					end
-					
-					
-					v_f_est = obj.chooseSolver(s_check,m_vecWCollection);
+								
 				case 'previous'
 					[v_sumOfGains,v_pathLoss] = obj.parameterEstimator(m_sensorPos,m_sensorInd,v_measurementsNoShadowing);
 					s_check = -1 * (v_measurements - (v_sumOfGains - v_pathLoss));
-					v_f_est = obj.chooseSolver(s_check,m_vecWCollection);
+					s_iterationNum = 1;
+					while (estimateDifference > s_stoppingCriterion) && (s_iterationNum < s_iterationMax)			
+						% [S1] estimate v_alpha
+						m_IfR = obj.computeIfR(prev_v_f,v_centroidsInd);
+						m_IfRK = m_IfR * m_K;										
+						v_alpha = ChannelGainMapEstimator.ridgeRegression(m_IfRK',s_check,obj.mu_w,m_K);
+						
+						% [S2] estimate v_f_est
+						v_RKa = m_RK * v_alpha;
+						m_A = reshape(v_RKa,s_gridNum,s_measurementNum)'; % see the definition of "A" in the paper
+						v_f_est = obj.chooseSolver(s_check,m_A');
+	
+						estimateDifference = norm(prev_v_f - v_f_est,2);
+						prev_v_f = v_f_est;
+						s_iterationNum = s_iterationNum + 1;
+					end
 				case 'simultaneous'
 					% we need an estimator jointly estimating v_f_est,
 					% pathloss exponent, and tx/rx gains only with shadow-faded channel
@@ -280,6 +288,8 @@ classdef ChannelGainMapEstimator < Parameter
 					v_sensorDistancesdB = zeros(s_measurementNum,1);
 					
 					m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
+% 					m_Omega = ones(s_measurementNum,1);
+
 					for s_measurementInd = 1: s_measurementNum
 						v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
 						v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
@@ -289,18 +299,39 @@ classdef ChannelGainMapEstimator < Parameter
 					m_barI = eye(s_measurementNum) - (1/(norm(v_sensorDistancesdB,2)^2))*(v_sensorDistancesdB)*(v_sensorDistancesdB');
 					m_tempOmega = m_barI * m_Omega;
 					% add "1e-4 * eye(s_sensorNum)" to "m_tempOmega' * m_tempOmega" for matrix inversion
-					m_barOmega = m_Omega * ((m_tempOmega' * m_tempOmega + 1e-4 * eye(s_sensorNum)) \ (m_tempOmega' * m_barI));
-					m_tildeI = m_barI * (eye(s_measurementNum) - m_barOmega);
+					m_barOmega = m_Omega * ((m_tempOmega' * m_tempOmega + 1e-4 * eye(size(m_Omega,2))) \ (m_tempOmega' * m_barI));
+					m_tildeI = m_barI * (eye(s_measurementNum) - m_barOmega );
 					v_barmeasurements = m_tildeI * v_measurements;
-					m_barvecWCollection = -1 * m_vecWCollection * m_tildeI';
-					v_f_est = obj.chooseSolver(v_barmeasurements,m_barvecWCollection);
+										
+					s_iterationNum = 1;
+					while (estimateDifference > s_stoppingCriterion) && (s_iterationNum < s_iterationMax)
+						% [S1] estimate v_alpha
+						m_IfR = obj.computeIfR(prev_v_f,v_centroidsInd);
+						m_IfRK = m_IfR * m_K;
+						m_barIfKR = -1 * m_IfRK' * m_tildeI';
+						v_alpha = ChannelGainMapEstimator.ridgeRegression(m_barIfKR,v_barmeasurements,obj.mu_w,m_K);
+						
+						% [S2] estimate v_f_est
+						v_RKa = m_RK * v_alpha;
+						m_A = reshape(v_RKa,s_gridNum,s_measurementNum)'; % see the definition of "A" in the paper
+						m_barA = -1 * m_A' * m_tildeI';
+						v_f_est = obj.chooseSolver(v_barmeasurements,m_barA);
+						
+						estimateDifference = norm(prev_v_f - v_f_est,2);
+						prev_v_f = v_f_est;
+						s_iterationNum = s_iterationNum + 1;
+					end
+					
 			end
           
 			% blind estimator outputs
-			m_F_est = reshape(v_f_est,N_x,N_y);			
-			h_w_est = @(input)  myRepThm(alpha,evl_pnt,input,myKfunc);
+			m_F_est = reshape(v_f_est,N_x,N_y);						
+			h_w_est = @(v_input) obj.represeThm(v_alpha,m_centroids,v_input);
+			
 		end
-		
+	end
+	
+	methods
 		function [v_sumOfGains,v_pathLoss] = parameterEstimator(obj,m_sensorPos,m_sensorInd,v_measurementsNoShadowing)
 			% Estimate(or assign) the sumOfGain and pathloss for every pair
 			% of sensors when obj.ch_calibrationType is either "none", or
@@ -351,20 +382,22 @@ classdef ChannelGainMapEstimator < Parameter
 			s_measurementNum = size(m_sensorIndNoShadow,2);
 			v_sensorDistancesNoShadow = zeros(s_measurementNum,1);
 			
-			m_OmegaNoShadow = csvread('m_Omega_free.csv');
-			s_sensorNum = size(m_OmegaNoShadow,2);
-
 			for s_measurementInd = 1: s_measurementNum
 				v_txPos = m_sensorPosNoShadow(:,m_sensorIndNoShadow(1,s_measurementInd));
 				v_rxPos = m_sensorPosNoShadow(:,m_sensorIndNoShadow(2,s_measurementInd));
 				v_sensorDistancesNoShadow(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
 			end
 			
-			m_regMat = [m_OmegaNoShadow,-1 * v_sensorDistancesNoShadow];
+			m_Omega = csvread('m_Omega_v2.csv');
+			s_sensorNum = size(m_Omega,2);
+			
+			m_regMat = [m_Omega,-1 * v_sensorDistancesNoShadow];
 			v_parameters = (m_regMat'*m_regMat + 1e-12* eye(s_sensorNum + 1))\(m_regMat'*v_measurementsNoShadowing);
 			v_gains_est = v_parameters(1:s_sensorNum,1);
 			s_pathLossExponent_est = v_parameters(s_sensorNum+1,1);
-			
+
+
+					
 			% 2. determine v_sumOfGains and v_pathLoss for the structured
 			% dataset.
 			m_sensorPos=t_sensorPos(:,:,2);
@@ -377,10 +410,10 @@ classdef ChannelGainMapEstimator < Parameter
 				v_sensorDistances(s_measurementInd) = 10 * log10(norm(v_txPos-v_rxPos));
 			end
 			
-			m_Omega = csvread('m_Omega.csv'); % due to measurements from sensors not conforming to the sensor selction rule	
+% 			m_Omega = csvread('m_Omega_v2.csv'); % due to measurements from sensors not conforming to the sensor selction rule
 			v_sumOfGains = m_Omega * v_gains_est;
-			v_pathLoss = s_pathLossExponent_est * v_sensorDistances;
 			
+			v_pathLoss = s_pathLossExponent_est * v_sensorDistances;		
 			% Measurements from 581 - 600 are missing in structured test.
 			v_sumOfGains = v_sumOfGains([1:580,601:end],1);
 			v_pathLoss = v_pathLoss([1:580,601:end],1);
@@ -412,6 +445,197 @@ classdef ChannelGainMapEstimator < Parameter
             end			
 			
 		end
+		
+		function [m_centroids, v_centroidsInd]= findCentroids(obj,m_sensorPos,m_sensorInd)
+			
+			% OUTPUT:
+			%   m_centroids       (2-by-s_clusterNum) matrix of centroids
+			%   m_featuresPhi     (2-by-n_measurements * Ng) matrix of all
+			%                     feature vectors
+			%   v_centroidsInd    (n_measurements * Ng)-by-1 vector
+			%                     of cluster indicies where each feature
+			%                     vector belongs to
+			
+			% Check
+			clustering = ~isempty(obj.s_clusterNum);
+			[s_yAxiSize, s_xAxiSize] = size(obj.ini_F);
+			s_measurementNum = size(m_sensorInd,2);
+			s_gridNum = s_yAxiSize * s_xAxiSize; % Number of grid points
+
+			
+			%1. Collect features (phi's) only within the ellipses. A
+			%function should consider the resolution of the SLF, as well.
+			m_featuresPhi = obj.findPhi(m_sensorPos,m_sensorInd,s_yAxiSize,s_xAxiSize);
+			
+			%2. Find centroids of phi's with the size of s_clusterNum
+			%according to ch_clustType
+			
+			if clustering
+				
+				% check
+				assert( obj.s_clusterNum <= s_gridNum*s_measurementNum );
+				
+				switch obj.ch_clustType
+					case 'kmeans'
+						% v_centroidsInd := size(m_featuresPhi,2)-by-1 vector
+						% containing indices of clusters where each column
+						% of m_collectPhi belongs to
+						% m_centroids := 2-by-s_clusterNum matrix where each
+						% column is a centroid of a cluster
+						[v_centroidsInd,m_centroids] = kmeans(m_featuresPhi',obj.s_clusterNum,'Replicates',2,'MaxIter',500,'start','sample','emptyaction','singleton');
+						
+						if  (sum(sum(isnan(m_centroids)))>0) || ( sum(sum(m_centroids==Inf))>0 )
+							error('kmeans returned NaN');
+						end
+						[m_centroids, ia, ic] = unique(m_centroids,'rows'); % Rmove redundant centroids
+						v_centroidsInd = ic(v_centroidsInd);
+						obj.s_clusterNum = size(ia,1);
+						m_centroids = m_centroids';
+					case 'random'
+						% choose obj.s_clusterNum feature vectors (cols of phi_col) --> centroids
+						m_tempCollectPhi = m_featuresPhi';
+						m_UniqcollectPhi = unique(m_tempCollectPhi,'rows')';
+						
+						v_rndCentroidInd = randperm(size(m_UniqcollectPhi,2),obj.s_clusterNum);
+						m_centroids = m_UniqcollectPhi(:,v_rndCentroidInd);
+						
+						m_Dist = pdist2(m_featuresPhi',m_centroids');% matD := distance matrix between coordinates and centroids
+						[~,v_centroidsInd] = min(m_Dist,[],2);
+				end
+	
+				
+			else  % no clustering
+				m_centroids = m_featuresPhi; % evl_pnt := evluation point of kerenl.
+				v_centroidsInd = 1:1:size(m_featuresPhi,2);
+			end
+			
+% 			ChannelGainMapEstimator.plot_clusters(m_centroids,m_featuresPhi,v_centroidsInd);
+			
+		end
+
+		function [m_featuresPhi,m_featPhiEllip] = findPhiEllip(obj,m_sensorPos,m_sensorInd,s_yAxiSize,s_xAxiSize)
+			% This is a function to find features only within an ellipse for non-zero weights.
+			
+			% OUTPUT:
+			%   m_featuresPhi    2-by-(s_measurementsNum * s_gridNumInEllipse)
+			s_measurementNum = size(m_sensorInd,2);
+			x_axis = repmat((0:s_xAxiSize-1)./obj.s_resolution, s_yAxiSize, 1);   % x_axis of a grid
+			y_axis = repmat((s_yAxiSize-1:-1:0)'./obj.s_resolution, 1, s_xAxiSize); % y_axis of a grid
+			s_gridNum = size(x_axis,2) * size(y_axis,2);
+			cnt = 1;
+			cnt2 = 1;
+			
+			m_featuresPhi = zeros(2,s_measurementNum * s_gridNum);
+							
+			for s_measurementInd = 1 : s_measurementNum
+				v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
+				v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
+				
+				s_phi1 = norm(v_txPos-v_rxPos);
+				m_phi2 = sqrt( (x_axis-v_txPos(1)).^2 + (y_axis-v_txPos(2)).^2 ) + sqrt( (x_axis-v_rxPos(1)).^2 + (y_axis-v_rxPos(2)).^2 );
+				v_phi2 = m_phi2(:);
+				
+                % m_featuresPhi contains every Phi vector, and
+                % m_featPhiEllip cotains Phi vectors only within an ellipse
+
+				for s_gridInd = 1 : s_gridNum
+					m_featuresPhi(:,cnt) = [s_phi1; v_phi2(s_gridInd)];
+					if v_phi2(s_gridInd) <= s_phi1 + obj.lambda_W/2
+						m_featPhiEllip(:,cnt2) = [s_phi1; v_phi2(s_gridInd)];
+						cnt2 = cnt2 + 1;
+					end
+					cnt = cnt + 1;
+				end
+				
+				
+			end
+		end
+		
+		function m_featuresPhi = findPhi(obj,m_sensorPos,m_sensorInd,s_yAxiSize,s_xAxiSize)
+			% This is a function to find every features only within an ellipse for non-zero weights.
+			
+			% OUTPUT:
+			%   m_featuresPhi    2-by-(s_measurementsNum * s_gridNumInEllipse)
+			s_measurementNum = size(m_sensorInd,2);
+			x_axis = repmat((0:s_xAxiSize-1)./obj.s_resolution, s_yAxiSize, 1);   % x_axis of a grid
+			y_axis = repmat((s_yAxiSize-1:-1:0)'./obj.s_resolution, 1, s_xAxiSize); % y_axis of a grid
+			s_gridNum = size(x_axis,2) * size(y_axis,2);
+			cnt = 1;
+			
+			m_featuresPhi = zeros(2,s_measurementNum * s_gridNum);
+							
+			for s_measurementInd = 1 : s_measurementNum
+				v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
+				v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
+				
+				s_phi1 = norm(v_txPos-v_rxPos);
+				m_phi2 = sqrt( (x_axis-v_txPos(1)).^2 + (y_axis-v_txPos(2)).^2 ) + sqrt( (x_axis-v_rxPos(1)).^2 + (y_axis-v_rxPos(2)).^2 );
+				v_phi2 = m_phi2(:);
+				%%%%%%%%%%%%% Check! Do we need to keep all phi's even
+				%%%%%%%%%%%%% outside of the ellipse?
+% 				for s_gridInd = 1 : s_gridNum
+% 					if v_phi2(s_gridInd) <= s_phi1 + obj.lambda_W/2 
+% 						m_featuresPhi(:,cnt) = [s_phi1; v_phi2(s_gridInd)];
+% 						cnt = cnt + 1;			
+% 					end
+% 				end		
+				%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+				for s_gridInd = 1 : s_gridNum
+					if v_phi2(s_gridInd) <= s_phi1 + obj.lambda_W/2
+						m_featuresPhi(:,cnt) = [s_phi1; v_phi2(s_gridInd)];
+					else
+						m_featuresPhi(:,cnt) = [s_phi1; s_phi1 + obj.lambda_W/2];
+					end
+					cnt = cnt + 1;
+				end
+							
+			end
+		end
+		
+		function m_IfR = computeIfR(obj,v_f,v_centroidsInd)
+			% This is a function to efficiently calculate "kron(eye(s_measurementNum),v_f')*m_R".
+			
+			% fR_mat = ( I \kron f^T ) R
+			% i) R_tilde:=[R_1' ; ... ; R_T'] * f
+			% ii) Rf_vec := sum(R_tilde,2)
+			% iii) fR_Mat = unvec(Rf_vec)'
+			
+			s_numGrid = size(v_f,1);
+			s_measurementNum = length(v_centroidsInd)/ s_numGrid;
+			idx_phi_mat = reshape(v_centroidsInd,s_numGrid,s_measurementNum);
+			row_inds = idx_phi_mat + obj.s_clusterNum*ones(s_numGrid,1)*(0:s_measurementNum-1);
+			col_inds = repmat(1:s_numGrid,1,s_measurementNum)';
+			entry_vals = repmat(v_f,s_measurementNum,1);
+			
+			v_Rf = full(sum(sparse(row_inds(:),col_inds,entry_vals,obj.s_clusterNum*s_measurementNum,s_numGrid,length(v_centroidsInd)),2));
+			
+			m_IfR = reshape(v_Rf,obj.s_clusterNum,s_measurementNum)';
+					
+		end
+		
+		function h_func = represeThm(obj,v_alpha,m_featureVecs,v_input)
+			% Learn a function by using the representer theorem.
+			
+			% INPUT:
+			%   v_alpha             2-by-Nc coefficients of kerne
+			%   m_featureVecs       2-by-(t*Ng) matrix of feature vectors
+			%                       corresponding to each coefficient
+			%   v_input             2-by-1 kernel input
+			%   h_kernel            Kernel function
+			% OUTPUT:
+			%   h_func              estimated function 
+			
+			s_coefficientNum = size(v_alpha,1);
+
+			v_K = zeros(1,s_coefficientNum);		
+			for i = 1 : s_coefficientNum
+				v_K(1,i) = obj.h_kernel(v_input,m_featureVecs(:,i));
+			end
+			
+			h_func = v_K * v_alpha;
+			
+		end
+		
 		
 	end
 	
@@ -627,8 +851,8 @@ classdef ChannelGainMapEstimator < Parameter
 
 		end
 		
-		function m_spatialCov = spatialCovMat(s_xAxiSize,s_yAxiSize,s_resolution)
-			% Generate a (s_xAxiSize-by-s_yAxiSize) spatial covariance
+		function m_spatialCov = spatialCovMat(s_yAxiSize,s_xAxiSize,s_resolution)
+			% Generate a (s_xAxiSize*s_yAxiSize-by-s_xAxiSize*s_yAxiSize) spatial covariance
 			% matrix. Covariance between two points v_x and v_y is "exp(-1
 			% * norm(v_x - v_y) )".
 				
@@ -652,8 +876,37 @@ classdef ChannelGainMapEstimator < Parameter
 			m_spatialCov = exp(-1*m_temp_spatialCov);
 			
 		end
-		
-		function m_K = kernelMatrix()
+				
+		function m_K = kernelMatrix(m_centroids,h_kernel)
+			% Kernel matrix generator
+			
+			% INPUT:
+			%   m_centroids          2-by-s_centroidNum matrix of centroids
+			%   h_kernel             Kernel function
+			%
+			% OUTPUT:
+			%       K               s_centroidNum x s_clusterNum kernel matrix
+			
+			s_centroidNum = size(m_centroids,2);
+			m_K = zeros(s_centroidNum);
+			
+			for m0 = 1 : s_centroidNum
+				for m1 = 1 : s_centroidNum
+					m_K(m0,m1) = h_kernel(m_centroids(:,m0),  m_centroids(:,m1) );
+				end
+			end
+			
+			min_eig = min(eig(m_K));
+			if min_eig <= 0
+				m_K = m_K - min_eig* eye(size(m_K,1));
+			end
+			m_K = m_K + 10^8*eps* eye(s_centroidNum);
+			
+			if rank(m_K) < s_centroidNum
+				s_centroidNum
+				rank_K = rank(m_K)
+			end
+					
 		end
 
 	end
@@ -667,7 +920,70 @@ classdef ChannelGainMapEstimator < Parameter
 			m_imageOut( m_imageOut > 1 ) = 1;
 			
 		end
-	
+
+		function m_imageOut = postprocessReal(m_imageIn)
+			
+			m_imageOut = m_imageIn;
+			m_imageOut( m_imageOut < 0 ) = 0;
+			m_imageOut( m_imageOut > 0.25 ) = 0.25;
+			
+		end
+		
+		function plot_clusters(m_centroids,m_featuresPhi,v_centroidsInd)
+			% Plot phi's and clusters
+			figure;
+			plot(m_centroids(1,:),m_centroids(2,:),'rx')
+			hold all
+			for i = 1 : size(m_centroids,2)
+				%phi = phi';
+				plot(m_featuresPhi(1,v_centroidsInd==i),m_featuresPhi(2,v_centroidsInd==i),'.')
+			end
+			
+			xlabel('\phi_1')
+			ylabel('\phi_2')			
+		end
+		
+		function [w_o,w_hat] = evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid)
+			%  Return functions values of h_w and h_est_w evaluated within
+			%  v_Range.
+			%
+			% INPUT:
+			%   w             Original function
+			%   v_rangPhi1    (2-by-1) First entry is the minimum value of a range for Phi1, and
+			%                 the second entry is the maximum value of a range for Phi1.
+			%   v_rangPhi2    (2-by-1) First entry is the minimum value of a range for Phi2, and
+			%                 the second entry is the maximum value of a range for Phi2.
+			%   v_intervGrid  (2-by-1) interval between grid points over
+			%                 Phi1 and Phi2 axis. First entry is of Phi1
+			%                 and the second entry is of Phi2.
+			
+			% OUTPUT:
+			%   w_o           Evaluation of ground truth h_w
+			%   w_hat         Evaluation of estimated function h_est_w
+					
+			rng_phi1 = v_rangPhi1(1):v_intervGrid(1):v_rangPhi1(2);
+			rng_phi2 = v_rangPhi2(1):v_intervGrid(2):v_rangPhi2(2);
+			
+			len_phi1 = size(rng_phi1,2);
+			len_phi2 = size(rng_phi2,2);
+			for i = 1 : len_phi1
+				for j = 1 : len_phi2
+					if rng_phi1(i) > rng_phi2(j)
+						w_hat(i,j) = NaN;
+						w_o(i,j) = NaN;
+					else
+						w_hat(i,j) = h_w_est([rng_phi1(i); rng_phi2(j)]);
+						w_o(i,j) = h_w(rng_phi1(i), rng_phi2(j));					
+					end
+				end
+			end
+			
+% 			plot(rng_phi2(1:1:end)',w_o(:,1:1:end)');
+% 			hold on
+% 			plot(rng_phi2(1:1:end)',w_hat(:,1:1:end)','--');
+					
+		end
+		
 		
 	end
 	
