@@ -33,7 +33,11 @@ classdef ChannelGainMapEstimator < Parameter
 					 %  'previous' : first calibration and then estimation
 					 %            of the SLF
 					 %  'simultaneous' 
-		s_pathLossExponent; 
+		s_pathLossExponent;
+		ch_gainType = 'different';
+		             %  'different' : every Tx/Rx has a different sensor
+		             %  gain
+					 %  'same'      : every sensor has the same gain
 		v_gains;
 					 
 		% estimation
@@ -72,7 +76,7 @@ classdef ChannelGainMapEstimator < Parameter
 			obj@Parameter(varargin{:});
 		end
 				
-		function [m_F_est,h_w_est,m_centroids] = estimate(obj,m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing)	
+		function [m_F_est,h_w_est] = estimate(obj,m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing)	
 			%
 			% OUTPUT:
 			%   m_est_F         N_x-by-N_y matrix with the estimate of F
@@ -287,8 +291,11 @@ classdef ChannelGainMapEstimator < Parameter
 					s_sensorNum = size(m_sensorPos,2);
 					v_sensorDistancesdB = zeros(s_measurementNum,1);
 					
-					m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
-% 					m_Omega = ones(s_measurementNum,1);
+					if strcmp(obj.ch_gainType,'different') == 1
+						m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
+					else
+						m_Omega = ones(s_measurementNum,1);
+					end
 
 					for s_measurementInd = 1: s_measurementNum
 						v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
@@ -341,7 +348,11 @@ classdef ChannelGainMapEstimator < Parameter
 			s_sensorNum = size(m_sensorPos,2);
 			v_sensorDistances = zeros(s_measurementNum,1);
 			
-			m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
+			if strcmp(obj.ch_gainType,'different') == 1
+				m_Omega = obj.sensorMapOp(m_sensorInd,s_sensorNum);
+			else
+				m_Omega = ones(s_measurementNum,1);
+			end
 	
 			for s_measurementInd = 1: s_measurementNum
 				v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
@@ -359,9 +370,9 @@ classdef ChannelGainMapEstimator < Parameter
 			else % when ch_calibrationType = 'previous'
 				% v_estGains / s_estPathLossExponent should be estimated
 				m_regMat = [m_Omega,-1 * v_sensorDistances];
-				v_parameters = (m_regMat'*m_regMat + 1e-12* eye(s_sensorNum + 1))\(m_regMat'*v_measurementsNoShadowing);
-				v_gains_est = v_parameters(1:s_sensorNum,1);
-				s_pathLossExponent_est = v_parameters(s_sensorNum+1,1);
+				v_parameters = (m_regMat'*m_regMat + 1e-12* eye(size(m_Omega,2) + 1))\(m_regMat'*v_measurementsNoShadowing);
+				v_gains_est = v_parameters(1:size(m_Omega,2),1);
+				s_pathLossExponent_est = v_parameters(size(m_Omega,2)+1,1);
 			end
 						
 			% v_estGains and s_estPathLossExponent should be known or
@@ -943,7 +954,7 @@ classdef ChannelGainMapEstimator < Parameter
 			ylabel('\phi_2')			
 		end
 		
-		function [w_o,w_hat] = evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid)
+		function [m_w_o,m_w_hat] = evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid)
 			%  Return functions values of h_w and h_est_w evaluated within
 			%  v_Range.
 			%
@@ -969,11 +980,11 @@ classdef ChannelGainMapEstimator < Parameter
 			for i = 1 : len_phi1
 				for j = 1 : len_phi2
 					if rng_phi1(i) > rng_phi2(j)
-						w_hat(i,j) = NaN;
-						w_o(i,j) = NaN;
+						m_w_hat(i,j) = NaN;
+						m_w_o(i,j) = NaN;
 					else
-						w_hat(i,j) = h_w_est([rng_phi1(i); rng_phi2(j)]);
-						w_o(i,j) = h_w(rng_phi1(i), rng_phi2(j));					
+						m_w_hat(i,j) = h_w_est([rng_phi1(i); rng_phi2(j)]);
+						m_w_o(i,j) = h_w(rng_phi1(i), rng_phi2(j));					
 					end
 				end
 			end

@@ -7,6 +7,11 @@
 classdef CGCartographySimulations < simFunctionSet
 	
 	properties
+		v_rangPhi1 = [2;6];
+		v_rangPhi2 = [2;6];
+		v_intervGrid = [0.2;0.01];
+		v_Phi1 = 2:0.2:4.3;
+		v_Phi2Axis = 2:0.01:4.5;
 	
 	end
 	
@@ -331,7 +336,6 @@ classdef CGCartographySimulations < simFunctionSet
 			% Create data generator
 			m_F = csvread('Map_10_10.csv');
 			m_F = m_F/max(max(m_F));
-			s_numGrid = size(m_F,1) * size(m_F,2);
 			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
 			%%% Inverse area ellipse model
 			s_delta = 1e-2;
@@ -352,12 +356,12 @@ classdef CGCartographySimulations < simFunctionSet
 			ch_calibrationType = 'none'; % 'none','previous','simultaneous'
 			ch_estimationType = 'blind';
 			ch_clustType = 'random';
-			s_kernelStd = 0.2;
+			s_kernelStd = 0.21;
 			h_kernel = @(input1,input2) exp(-norm(input1-input2)./(2 * s_kernelStd^2));
 			mu_f = 1e-4; % 1e-4 for l1, 1e-5 for total variation
-			mu_w = 1e-4; % 1e-4 for l1, 1e-5 for total variation
+			mu_w = 1e-5; % 1e-4 for l1, 1e-5 for total variation
 			ini_F = rand(size(m_F));
-            rho =  1e-3; % 2.5 for ISTA, 1e-4 for total variation
+            rho =  1e-4; % 2.5 for ISTA, 1e-4 for total variation
 			est = ChannelGainMapEstimator('mu_f',mu_f,'mu_w',mu_w,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType',ch_estimationType,'rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType,'s_clusterNum',s_clusterNum,'lambda_W',lambda_W,'ch_clustType',ch_clustType,'h_kernel',h_kernel);
 			
 			% SIMULATION
@@ -367,20 +371,23 @@ classdef CGCartographySimulations < simFunctionSet
 			% B) estimation
 			[m_F_est,h_w_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
 			
-			% Display parameter
-			v_rangPhi1 = [2;6];
-			v_rangPhi2 = [2;6];
-			v_intervGrid = [0.2;0.01];
-			v_Phi2Axis = 2:0.01:5;
-			s_lengthPhi2Axis = length(v_Phi2Axis);
-			[m_w_o,m_w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid);
-			m_evaluated_w = [m_w_o(1:12,1:s_lengthPhi2Axis);m_w_hat(1:12,1:s_lengthPhi2Axis)];
-			
+			% DISPLAY
+			% A) spatial loss fields
 			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
 			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');	
 			
 			F(1) = F_figure('multiplot_array',[F1 F2]);
-			F(2) = F_figure('X',v_Phi2Axis,'Y',m_evaluated_w,'colorp',12);
+			
+			% B) weight functions
+			s_lengthPhi1 = length(obj.v_Phi1);
+			s_lengthPhi2Axis = length(obj.v_Phi2Axis);
+			for s_phi1Ind = 1 : s_lengthPhi1
+				leg{s_phi1Ind} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+				leg{s_phi1Ind + s_lengthPhi1} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+			end		
+			[m_w_o,m_w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,obj.v_rangPhi1,obj.v_rangPhi2,obj.v_intervGrid);
+			m_evaluated_w = [m_w_o(1:12,1:s_lengthPhi2Axis);m_w_hat(1:12,1:s_lengthPhi2Axis)];
+			F(2) = F_figure('X',obj.v_Phi2Axis,'Y',m_evaluated_w,'colorp',12,'tit','Weight functions','leg',leg,'xlab','\phi_2','ylab','FUNCTION VALUE');
 
 		end
 		
@@ -391,7 +398,6 @@ classdef CGCartographySimulations < simFunctionSet
 			% Create data generator
 			m_F = csvread('Map_10_10.csv');
 			m_F = m_F/max(max(m_F));
-			s_numGrid = size(m_F,1) * size(m_F,2);
 			lambda_W = 0.2; % parameter to determine the threshold for nonzero weights
 			h_w = @(phi1,phi2) (1/sqrt(phi1)).*(phi2<phi1+lambda_W/2); % normalized ellipse model
 			s_measurementNum = 1000;
@@ -423,16 +429,23 @@ classdef CGCartographySimulations < simFunctionSet
 			% B) estimation
 			[m_F_est,h_w_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
 			
-			% Display parameter
-			v_rangPhi1 = [2;6];
-			v_rangPhi2 = [2;6];
-			v_intervGrid = [0.2;0.01];	
-			[w_o,w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid);
-			
+			% DISPLAY
+			% A) spatial loss fields
 			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
 			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');	
 			
-			F = F_figure('multiplot_array',[F1 F2]);
+			F(1) = F_figure('multiplot_array',[F1 F2]);
+			
+			% B) weight functions
+			s_lengthPhi1 = length(obj.v_Phi1);
+			s_lengthPhi2Axis = length(obj.v_Phi2Axis);
+			for s_phi1Ind = 1 : s_lengthPhi1
+				leg{s_phi1Ind} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+				leg{s_phi1Ind + s_lengthPhi1} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+			end		
+			[m_w_o,m_w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,obj.v_rangPhi1,obj.v_rangPhi2,obj.v_intervGrid);
+			m_evaluated_w = [m_w_o(1:12,1:s_lengthPhi2Axis);m_w_hat(1:12,1:s_lengthPhi2Axis)];
+			F(2) = F_figure('X',obj.v_Phi2Axis,'Y',m_evaluated_w,'colorp',12,'tit','Weight functions','leg',leg,'xlab','\phi_2','ylab','FUNCTION VALUE');
 		end
 		
 		% This is a toy simulation for a blind shadow loss field
@@ -442,7 +455,6 @@ classdef CGCartographySimulations < simFunctionSet
 			% Create data generator
 			m_F = csvread('Map_10_10.csv');
 			m_F = m_F/max(max(m_F));
-			s_numGrid = size(m_F,1) * size(m_F,2);
 			lambda_W = 0.4; % parameter to determine the threshold for nonzero weights
 			%%% Inverse area ellipse model
 			s_delta = 1e-2;
@@ -451,16 +463,18 @@ classdef CGCartographySimulations < simFunctionSet
 			%%%
 			s_measurementNum = 1000;
             s_pathLossExponent = 2;
-            s_sensorNum = 500;
+            s_sensorNum = 300;
             s_avgSensorGain = 20;
-            v_gains = s_avgSensorGain + rand(s_sensorNum,1) .* (2 * (rand(s_sensorNum,1) < 0.5) - 1);
+%             v_gains = s_avgSensorGain + rand(s_sensorNum,1) .* (2 * (rand(s_sensorNum,1) < 0.5) - 1);
+			v_gains = s_avgSensorGain*ones(s_sensorNum,1) + rand(s_sensorNum,1) * 1e-2;
+
 			s_noiseVar = 0.001;% noise variance
 			dataGenerator = SyntheticSensorMeasurementsGenerator('m_F',m_F,'h_w',h_w,'s_measurementNum',s_measurementNum,'s_noiseVar',s_noiseVar,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent);
 							
 			% Create estimator
 			s_clusterNum = 700;
-			ch_reg_f_type = 'totalvariation'; %'tikhonov','l1_PCO'; %'totalvariation';			
-			ch_calibrationType = 'previous'; % 'none','previous','simultaneous'
+			ch_reg_f_type = 'totalvariation'; %'tikhonov'; 'l1_PCO'; 'totalvariation';			
+			ch_calibrationType = 'previous'; % 'none';'previous';'simultaneous'
 			ch_estimationType = 'blind';
 			ch_clustType = 'random';
 			s_kernelStd = 0.2;
@@ -477,18 +491,24 @@ classdef CGCartographySimulations < simFunctionSet
 			
 			% B) estimation
 			[m_F_est,h_w_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
-			
-			% Display parameter
-			v_rangPhi1 = [2;6];
-			v_rangPhi2 = [2;6];
-			v_intervGrid = [0.2;0.01];	
-			[w_o,w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid);
-			
+					
+			% DISPLAY
+			% A) spatial loss fields
 			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
 			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');	
 			
-			F = F_figure('multiplot_array',[F1 F2]);
-% 			F = F_figure('X',(2:0.01:6),'Y',[w_o;w_hat]);
+			F(1) = F_figure('multiplot_array',[F1 F2]);
+			
+			% B) weight functions
+			s_lengthPhi1 = length(obj.v_Phi1);
+			s_lengthPhi2Axis = length(obj.v_Phi2Axis);
+			for s_phi1Ind = 1 : s_lengthPhi1
+				leg{s_phi1Ind} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+				leg{s_phi1Ind + s_lengthPhi1} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+			end		
+			[m_w_o,m_w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,obj.v_rangPhi1,obj.v_rangPhi2,obj.v_intervGrid);
+			m_evaluated_w = [m_w_o(1:12,1:s_lengthPhi2Axis);m_w_hat(1:12,1:s_lengthPhi2Axis)];
+			F(2) = F_figure('X',obj.v_Phi2Axis,'Y',m_evaluated_w,'colorp',12,'tit','Weight functions','leg',leg,'xlab','\phi_2','ylab','FUNCTION VALUE');
 
 		end
 		
@@ -505,7 +525,7 @@ classdef CGCartographySimulations < simFunctionSet
 			h_Omega = @(phi1,phi2)  4 ./ (pi .* phi2 .* sqrt(phi2.^2 - phi1.^2));
 			h_w = @(phi1,phi2)  min(h_Omega(phi1,phi2),h_Omega(phi1,phi1 + s_delta)).*(phi2<phi1+lambda_W/2);
 			%%%
-			s_measurementNum = 1500;
+			s_measurementNum = 2500;
 			s_pathLossExponent = 2;
 			s_sensorNum = 500;
 			s_avgSensorGain = 20;
@@ -519,13 +539,14 @@ classdef CGCartographySimulations < simFunctionSet
 			ch_calibrationType = 'simultaneous'; % 'none','previous','simultaneous'
 			ch_estimationType = 'blind';
 			ch_clustType = 'random';
+			ch_gainType = 'different'; % 'different'; 'same'
 			s_kernelStd = 0.2;
 			h_kernel = @(input1,input2) exp(-norm(input1-input2)./(2 * s_kernelStd^2));
 			mu_f = 1e-4; % 1e-4 for l1, 1e-5 for total variation
 			mu_w = 1e-4; % 1e-4 for l1, 1e-5 for total variation
 			ini_F = rand(size(m_F));
 			rho =  1e-3; % 2.5 for ISTA, 1e-4 for total variation
-			est = ChannelGainMapEstimator('mu_f',mu_f,'mu_w',mu_w,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType',ch_estimationType,'rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType,'s_clusterNum',s_clusterNum,'lambda_W',lambda_W,'ch_clustType',ch_clustType,'h_kernel',h_kernel);
+			est = ChannelGainMapEstimator('mu_f',mu_f,'mu_w',mu_w,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType',ch_estimationType,'rho',rho,'v_gains',v_gains,'s_pathLossExponent',s_pathLossExponent,'ch_calibrationType',ch_calibrationType,'ch_estimationType',ch_estimationType,'s_clusterNum',s_clusterNum,'lambda_W',lambda_W,'ch_clustType',ch_clustType,'h_kernel',h_kernel,'ch_gainType',ch_gainType);
 			
 			% SIMULATION
 			% A) data generation
@@ -534,19 +555,23 @@ classdef CGCartographySimulations < simFunctionSet
 			% B) estimation
 			[m_F_est,h_w_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
 			
-			% Display parameter
-			v_rangPhi1 = [2;6];
-			v_rangPhi2 = [2;6];
-			v_intervGrid = [0.2;0.01];
-			[w_o,w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid);
-			
+			% DISPLAY
+			% A) spatial loss fields
 			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
-			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');
+			F2 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F_est),'tit','Estimated');	
 			
 			F(1) = F_figure('multiplot_array',[F1 F2]);
-			% 			F = F_figure('X',(2:0.01:6),'Y',[w_o;w_hat]);
 			
-			F(2) = F_figure()
+			% B) weight functions
+			s_lengthPhi1 = length(obj.v_Phi1);
+			s_lengthPhi2Axis = length(obj.v_Phi2Axis);
+			for s_phi1Ind = 1 : s_lengthPhi1
+				leg{s_phi1Ind} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+				leg{s_phi1Ind + s_lengthPhi1} = sprintf('\\phi_1 = %g', obj.v_Phi1(s_phi1Ind));
+			end		
+			[m_w_o,m_w_hat] = ChannelGainMapEstimator.evaluate_w(h_w,h_w_est,obj.v_rangPhi1,obj.v_rangPhi2,obj.v_intervGrid);
+			m_evaluated_w = [m_w_o(1:12,1:s_lengthPhi2Axis);m_w_hat(1:12,1:s_lengthPhi2Axis)];
+			F(2) = F_figure('X',obj.v_Phi2Axis,'Y',m_evaluated_w,'colorp',12,'tit','Weight functions','leg',leg,'xlab','\phi_2','ylab','FUNCTION VALUE');
 		end
 		
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -636,8 +661,6 @@ classdef CGCartographySimulations < simFunctionSet
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		% %%  5. Simple blind simulations with REAL data
 		% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		
-		
 		
 		
 		
