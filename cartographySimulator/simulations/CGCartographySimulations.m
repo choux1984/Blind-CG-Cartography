@@ -331,7 +331,7 @@ classdef CGCartographySimulations < simFunctionSet
 			
 		% This is a toy simulation for a blind shadow loss field
 		% estimation with inverse area ellipse model. No need for data
-		% calibraion.
+		% calibration.
 		function F = compute_fig_3001(obj,niter)
 			% Create data generator
 			m_F = csvread('Map_10_10.csv');
@@ -370,7 +370,7 @@ classdef CGCartographySimulations < simFunctionSet
 			
 			% B) estimation
 			[m_F_est,h_w_est] = est.estimate(m_sensorPos,m_sensorInd,v_measurements,v_measurementsNoShadowing);
-			
+
 			% DISPLAY
 			% A) spatial loss fields
 			F1 = F_figure('Z',ChannelGainMapEstimator.postprocess(m_F),'tit','Original');
@@ -449,8 +449,7 @@ classdef CGCartographySimulations < simFunctionSet
 		end
 		
 		% This is a toy simulation for a blind shadow loss field
-		% estimation with inverse area ellipse model. Indepdent data calibration method is used in this simulation.
-		
+		% estimation with inverse area ellipse model. Indepdent data calibration method is used in this simulation.		
 		function F = compute_fig_3003(obj,niter)
 			% Create data generator
 			m_F = csvread('Map_10_10.csv');

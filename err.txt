@@ -1,0 +1,12 @@
+{Error using simFunctionSet/invoke_function (line 220)
+Simulation 20001 does not exist
+
+Error in simFunctionSet/invoke_functions (line 59)
+				obj.invoke_function(fig_vector(k),niter);
+
+Error in simFunctionSet/simt_compute (line 40)
+			fs.invoke_functions(fnum,niter)
+
+Error in simt (line 48)
+	simt_compute(fs,fnum_in,niter,onlyplot)
+} 

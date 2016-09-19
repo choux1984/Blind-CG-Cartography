@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# for MSI only
+# module load matlab
+
+if [ $# -lt 1 ]; then
+    echo "usage: $0 command [output_file]";
+    echo "default output file: out.txt"
+    echo "error file: err.txt"
+    exit;
+fi
+
+if [ $# -lt 2 ]; then
+    outf="out.txt";
+else
+    outf=$2;
+fi
+
+date
+
+outfolder="output/";
+errf="$outfolder""err.txt";
+cmd=$1",exit;";
+#subject="Job end in host \"$(more /etc/hostname)\". Command: \"$cmd\" ";
+subject="Job end. Command: \"$cmd\" ";
+
+nohup ./start_matlab_job  "$cmd" "$outfolder$outf" "$subject" "$errf" 1>/dev/null 2>"$outfolder""err2.txt" ;
+
+# comment the previous line and uncomment the following one if you
+# prefer executing your Matlab script in the background.
+
+#nohup matlab -nodisplay -nosplash -nodesktop -r "$cmd" </dev/null 1>"$outf" 2>err.txt &
+
+more "$outfolder$outf";

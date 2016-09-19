@@ -1,0 +1,15 @@
+#!/bin/bash
+
+cmd=$1;
+outf=$2;
+subject=$3;
+errf=$4;
+
+echo "executing \"$cmd\" "
+
+matlab -nodisplay -nosplash -nodesktop -r "$cmd" </dev/null  1>"$outf" 2>"$errf"
+#matlab -nosplash -nodesktop -r "$cmd" </dev/null  1>"$outf" 2>err.txt 
+ 
+#more $outf | mail -s "$subject" dromero@gts.uvigo.es ;
+
+
