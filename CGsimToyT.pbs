@@ -1,0 +1,6 @@
+#PBS -l nodes=1:ppn=16,walltime=48:00:00
+#PBS -m abe
+#PBS -M leex6962@umn.edu
+cd /home/georgios/leex6962/Temporary_folder
+module load matlab
+matlab -nodisplay -r "simt(0,3007)" </dev/null 1>out_toy.txt 2>err_toy.txt
