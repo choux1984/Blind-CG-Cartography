@@ -1,0 +1,6 @@
+#PBS -l nodes=1:ppn=16,walltime=48:00:00
+#PBS -m abe
+#PBS -M leex6962@umn.edu
+cd /home/georgios/leex6962/Blind_CG_simulation_v2
+module load matlab
+matlab -nodisplay -r "simt(0,6006)" </dev/null 1>out_toy1.txt 2>err_toy1.txt
