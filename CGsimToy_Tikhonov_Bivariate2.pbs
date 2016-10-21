@@ -1,0 +1,6 @@
+#PBS -l nodes=1:ppn=8,walltime=4:00:00
+#PBS -m abe
+#PBS -M leex6962@umn.edu
+cd /home/georgios/leex6962/Blind_CG_simulation_v2
+module load matlab
+matlab -nodisplay -r "simt(0,6012)" </dev/null 1>out_tikhonov.txt 2>err_tikhonov.txt

@@ -69,7 +69,15 @@ classdef ChannelGainMapEstimator < Parameter
 		ch_clustType % Types of feature clusterting, and corresponding cluster centroids. 
 		             % 'random' : random sampling 
 					 % 'kmeans' : k-means
-		lambda_W     % h_w is estimated with domain equal to an ellipse whose semi-minor axis is lambda_W
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		%%%%%%%%%%%%%%%%%%%%%%%%%%% only for warm start of v_alpha
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		m_InitialCentroids = [];
+		v_InitialCentroidsInd
+		v_InitialcolIdx1Psi_t
+		v_InitialrowDimPsi_t
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		lambda_W   % h_w is estimated with domain equal to an ellipse whose semi-minor axis is lambda_W
 		ch_coefficient % name of a file containing kernel coefficients and centroids used to obtain it
 		s_SemiAxisLength4Sample % Parameter to define the support for feature-sampling to find centroids.
 	end
@@ -131,6 +139,7 @@ classdef ChannelGainMapEstimator < Parameter
 			end
 
             m_vecWCollection = zeros(s_gridNum,s_measurementNum);
+			
 			for s_measurementInd = 1 : s_measurementNum
 				v_txPos = m_sensorPos(:,m_sensorInd(1,s_measurementInd));
 				v_rxPos = m_sensorPos(:,m_sensorInd(2,s_measurementInd));
@@ -148,6 +157,7 @@ classdef ChannelGainMapEstimator < Parameter
 				end
 				
 				m_vecWCollection(:,s_measurementInd) = m_W(:);
+				
 			end
 			
             % 2. Estimate m_F_est according to obj.ch_reg_f_type (regularizer type) and ch_calibrationType.
@@ -191,8 +201,16 @@ classdef ChannelGainMapEstimator < Parameter
 			[N_x, N_y] = size(obj.ini_F);
 			s_gridNum = N_x * N_y;
 			s_measurementNum = length(v_measurements);
+			
+			if isempty(obj.m_InitialCentroids)
+				[m_centroids, v_centroidsInd, v_colIdx1Psi_t,v_rowDimPsi_t]= obj.findCentroids(m_sensorPos,m_sensorInd);
+			else
+				m_centroids = obj.m_InitialCentroids;
+				v_centroidsInd = obj.v_InitialCentroidsInd;
+				v_colIdx1Psi_t = obj.v_InitialcolIdx1Psi_t;
+				v_rowDimPsi_t = obj.v_InitialrowDimPsi_t;
+			end
 
-			[m_centroids, v_centroidsInd, v_colIdx1Psi_t,v_rowDimPsi_t]= obj.findCentroids(m_sensorPos,m_sensorInd);
 			v_PsiRKaIdx = ChannelGainMapEstimator.nzRelativeIdxFinder(v_colIdx1Psi_t,v_rowDimPsi_t,s_gridNum);
 			m_K = ChannelGainMapEstimator.kernelMatrix(m_centroids,obj.h_kernel);
 			
@@ -222,7 +240,7 @@ classdef ChannelGainMapEstimator < Parameter
 						s_iterationMax = 2 * 1e2;
 						[v_alpha,v_f_est] = obj.AlternatingMinimization(s_threshold4stopIteration,s_iterationMax,s_check,prev_v_f,m_K,v_centroidsInd,[],v_PsiRKaIdx,v_colIdx1Psi_t,v_rowDimPsi_t);
 					else
-						s_iterationMax = 2;
+						s_iterationMax = 2 * 1e2;
 						[v_alpha,v_f_est] = obj.AlternatingMinimizationStartedWithAlpha(s_threshold4stopIteration,s_iterationMax,s_check,prev_v_f,m_K,v_centroidsInd,[],v_PsiRKaIdx,v_colIdx1Psi_t,v_rowDimPsi_t);
 					end
 				case 'simultaneous'
@@ -238,7 +256,7 @@ classdef ChannelGainMapEstimator < Parameter
 						s_iterationMax = 2 * 1e2;
 						[v_alpha,v_f_est] = obj.AlternatingMinimization(s_threshold4stopIteration,s_iterationMax,s_check,prev_v_f,m_K,v_centroidsInd,m_projection,v_PsiRKaIdx,v_colIdx1Psi_t,v_rowDimPsi_t);
 					else
-						s_iterationMax = 10;
+						s_iterationMax = 1e2;
 						[v_alpha,v_f_est] = obj.AlternatingMinimizationStartedWithAlpha(s_threshold4stopIteration,s_iterationMax,s_check,prev_v_f,m_K,v_centroidsInd,m_projection,v_PsiRKaIdx,v_colIdx1Psi_t,v_rowDimPsi_t);
 					end
 					
@@ -251,7 +269,7 @@ classdef ChannelGainMapEstimator < Parameter
 			
 		end
 		
-		function [m_centroids, v_centroidsInd,v_alpha,h_w_est] = optfunctionEstimation(obj,m_sensorPos,m_sensorInd)
+		function [m_centroids, v_centroidsInd,v_colIdx1Psi_t,v_rowDimPsi_t,v_alpha,h_w_est] = optfunctionEstimation(obj,m_sensorPos,m_sensorInd)
 		% This is a function to estimate optimal kernel coefficients to express a weight function lying in RKHS
 		% (accordingly, optimally estimated function, too) using a representer theorem.
 		
@@ -262,7 +280,7 @@ classdef ChannelGainMapEstimator < Parameter
 		% well-known 'k-means'. Furthermore, for the case with finite
 		% supports, coefficients corresponding only to finite supports are esimated.
 
-		[m_centroids, v_centroidsInd, ~,~] = obj.findCentroids(m_sensorPos,m_sensorInd);
+		[m_centroids, v_centroidsInd, v_colIdx1Psi_t,v_rowDimPsi_t] = obj.findCentroids(m_sensorPos,m_sensorInd);
 		m_K = ChannelGainMapEstimator.kernelMatrix(m_centroids,obj.h_kernel);
 		
 
@@ -622,9 +640,13 @@ classdef ChannelGainMapEstimator < Parameter
 	
 				estimateDifference = norm(v_prev_alpha - v_alpha_est,2);
 				v_prev_alpha = v_alpha_est;
+				
+				v_cost(s_iterationNum) = (1/s_measurementNum) * norm(s_check - m_A_f * v_alpha_est)^2 + obj.mu_f * v_f_est' * obj.m_tikhonov*v_f_est + obj.mu_w *v_alpha_est' * m_K * v_alpha_est;
+				
 				s_iterationNum = s_iterationNum + 1;
 			end
-			
+			figure;
+			plot(v_cost);
 		end
 
 	end
@@ -1018,10 +1040,9 @@ classdef ChannelGainMapEstimator < Parameter
 			
 			v_imageOut = (v_imageOut- s_minVal)./(s_maxVal - s_minVal);
 			
-			
-			v_imageOut( v_imageOut < 0.55 ) = 0.55;
-			v_imageOut( v_imageOut > 0.9) = 0.9;
-			
+% 			
+			v_imageOut( v_imageOut < 0.57 ) = 0.57;
+			v_imageOut( v_imageOut > 0.85) = 0.85;		
 			m_imageOut = reshape(v_imageOut,N_x,N_y);
 
 			
@@ -1037,7 +1058,7 @@ classdef ChannelGainMapEstimator < Parameter
 			m_imageOut = (m_imageOut- s_minVal)./(s_maxVal - s_minVal);
 			
 			
-			m_imageOut( m_imageOut < 0.3 ) = 0.3;
+			m_imageOut( m_imageOut < 0.26 ) = 0.26;
 			m_imageOut( m_imageOut > 0.5) = 0.5;
 			
 		end
@@ -1057,7 +1078,7 @@ classdef ChannelGainMapEstimator < Parameter
 			ylabel('\phi_2')			
 		end
 		
-		function [m_w_o,m_w_hat] = evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid)
+		function [m_w_o,m_w_hat] = evaluate_w(h_w,h_w_est,v_rangPhi1,v_rangPhi2,v_intervGrid,lambda_W)
 			%  Return functions values of h_w and h_est_w evaluated within
 			%  v_Range.
 			%
@@ -1070,6 +1091,8 @@ classdef ChannelGainMapEstimator < Parameter
 			%   v_intervGrid  (2-by-1) interval between grid points over
 			%                 Phi1 and Phi2 axis. First entry is of Phi1
 			%                 and the second entry is of Phi2.
+			%   lambda_W      Semi-minor axis of ellipse to define a
+			%                 support of nonzero weight.
 			
 			% OUTPUT:
 			%   w_o           Evaluation of ground truth h_w
@@ -1080,13 +1103,18 @@ classdef ChannelGainMapEstimator < Parameter
 			
 			len_phi1 = size(rng_phi1,2);
 			len_phi2 = size(rng_phi2,2);
+			
+			if isempty(lambda_W)
+				lambda_W = inf;
+			end
+			
 			for i = 1 : len_phi1
 				for j = 1 : len_phi2
 					if rng_phi1(i) > rng_phi2(j)
 						m_w_hat(i,j) = NaN;
 						m_w_o(i,j) = NaN;
 					else
-						m_w_hat(i,j) = h_w_est(rng_phi1(i), rng_phi2(j));
+						m_w_hat(i,j) = h_w_est(rng_phi1(i), rng_phi2(j)).*(rng_phi2(j)<rng_phi1(i)+lambda_W/2);
 						m_w_o(i,j) = h_w(rng_phi1(i), rng_phi2(j));					
 					end
 				end
@@ -1094,7 +1122,35 @@ classdef ChannelGainMapEstimator < Parameter
 			
 					
 		end
+	
 		
+		function F = plotW(m_w_o,m_w_hat,s_numCurve,v_phi1Grid,v_phi2Grid,v_GridInterval)
+			
+			s_FigIdx = round(size(m_w_o,1)/s_numCurve) - 1;
+			image_F=[];
+			for i = 1 : s_FigIdx
+				s_first_phi1Idx = 1 + (i - 1) * s_numCurve;
+				s_last_phi1Idx = i * s_numCurve;
+				
+				s_first_phi2Idx = (v_phi1Grid(s_first_phi1Idx) - 1)/v_GridInterval(2) + 1;
+				s_last_phi2Idx = (v_phi1Grid(s_last_phi1Idx) + 2 )/v_GridInterval(2);
+				
+				
+				% repeat for every 12 phi1 entries
+				for s_phi1Ind = 1 : s_numCurve
+					leg{s_phi1Ind} = sprintf('\\phi_1 = %g', v_phi1Grid(s_phi1Ind));
+					leg{s_phi1Ind + s_numCurve} = sprintf('\\phi_1 = %g', v_phi1Grid(s_phi1Ind));
+				end
+				
+				m_evaluated_w = [m_w_o(s_first_phi1Idx:s_last_phi1Idx,s_first_phi2Idx:s_last_phi2Idx);m_w_hat(s_first_phi1Idx:s_last_phi1Idx,s_first_phi2Idx:s_last_phi2Idx)];
+				temp_F = F_figure('X',v_phi2Grid(1,s_first_phi2Idx:s_last_phi2Idx),'Y',m_evaluated_w,'colorp',12,'tit','Weight functions','leg',leg,'xlab','\phi_2','ylab','FUNCTION VALUE');
+				image_F = [image_F;temp_F];
+			end
+			
+			F = F_figure('multiplot_array',image_F);
+
+			
+		end
 		
 	end
 	
