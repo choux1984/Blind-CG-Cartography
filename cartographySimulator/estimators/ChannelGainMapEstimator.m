@@ -240,7 +240,7 @@ classdef ChannelGainMapEstimator < Parameter
 						s_iterationMax = 2 * 1e2;
 						[v_alpha,v_f_est] = obj.AlternatingMinimization(s_threshold4stopIteration,s_iterationMax,s_check,prev_v_f,m_K,v_centroidsInd,[],v_PsiRKaIdx,v_colIdx1Psi_t,v_rowDimPsi_t);
 					else
-						s_iterationMax = 2 * 1e2;
+						s_iterationMax = 3 * 1e2;
 						[v_alpha,v_f_est] = obj.AlternatingMinimizationStartedWithAlpha(s_threshold4stopIteration,s_iterationMax,s_check,prev_v_f,m_K,v_centroidsInd,[],v_PsiRKaIdx,v_colIdx1Psi_t,v_rowDimPsi_t);
 					end
 				case 'simultaneous'
@@ -1040,7 +1040,8 @@ classdef ChannelGainMapEstimator < Parameter
 			
 			v_imageOut = (v_imageOut- s_minVal)./(s_maxVal - s_minVal);
 			
-% 			
+% 			v_imageOut( v_imageOut < 0.45 ) = 0.57;
+% 			v_imageOut( v_imageOut > 0.85) = 0.85;	
 			v_imageOut( v_imageOut < 0.57 ) = 0.57;
 			v_imageOut( v_imageOut > 0.85) = 0.85;		
 			m_imageOut = reshape(v_imageOut,N_x,N_y);
@@ -1137,9 +1138,11 @@ classdef ChannelGainMapEstimator < Parameter
 				
 				
 				% repeat for every 12 phi1 entries
-				for s_phi1Ind = 1 : s_numCurve
-					leg{s_phi1Ind} = sprintf('\\phi_1 = %g', v_phi1Grid(s_phi1Ind));
-					leg{s_phi1Ind + s_numCurve} = sprintf('\\phi_1 = %g', v_phi1Grid(s_phi1Ind));
+				cnt = 1;
+				for s_phi1Ind = s_first_phi1Idx : s_last_phi1Idx
+					leg{cnt} = sprintf('\\phi_1 = %g', v_phi1Grid(s_phi1Ind));
+					leg{cnt + s_numCurve} = sprintf('\\phi_1 = %g', v_phi1Grid(s_phi1Ind));
+					cnt = cnt + 1;
 				end
 				
 				m_evaluated_w = [m_w_o(s_first_phi1Idx:s_last_phi1Idx,s_first_phi2Idx:s_last_phi2Idx);m_w_hat(s_first_phi1Idx:s_last_phi1Idx,s_first_phi2Idx:s_last_phi2Idx)];

@@ -1379,13 +1379,13 @@ classdef CGCartographySimulations < simFunctionSet
 			ch_estimationType = 'blind';
 			ch_clustType = 'random';
 			s_SemiAxisLength4Sample = lambda_W;
-			s_kernelStd1 = 0.3;
+			s_kernelStd1 = 0.5;
 			s_kernelStd2 = 1;
 			h_kernel = @(input1,input2) exp(-norm([1/s_kernelStd1, 0;0,1/s_kernelStd2]*(input1-input2)).^2./2);
-			mu_f =  3 * 1e-1;
+			mu_f =  1* 1e-1;
 			mu_w = 1e-2;
 			ini_F = rand(s_yAxiSize,s_xAxiSize);
-			rho =  1e-5;
+			rho =  1e-3;
 			est = ChannelGainMapEstimator('mu_f',mu_f,'mu_w',mu_w,'ch_reg_f_type',ch_reg_f_type,'h_w',h_w,'ini_F',ini_F,'ch_estimationType',ch_estimationType,'rho',rho,'ch_calibrationType',ch_calibrationType,'s_clusterNum',s_clusterNum,'lambda_W',lambda_W,'ch_clustType',ch_clustType,'h_kernel',h_kernel,'s_SemiAxisLength4Sample',s_SemiAxisLength4Sample,'m_tikhonov',m_tikhonov,'s_resolution',s_resolution);
 			est.m_Omega = csvread('m_Omega.csv');
 			
@@ -1816,7 +1816,7 @@ classdef CGCartographySimulations < simFunctionSet
 			lambda_W = 0.3937; % parameter to determine the threshold for nonzero weights. e.g. 0.3937 for 1st fresnel zone
 			h_w = @(phi1,phi2) (1/sqrt(phi1)).*(phi2<phi1+lambda_W/2); % normalized ellipse model
 			
-			s_clusterNum = 1000;
+			s_clusterNum = 10;
 			ch_reg_f_type = 'tikhonov'; %'tikhonov','l1_PCO'; %'totalvariation';
 			m_spatialCov = ChannelGainMapEstimator.spatialCovMat(s_yAxiSize,s_xAxiSize,s_resolution);
 			m_tikhonov = inv(m_spatialCov);
